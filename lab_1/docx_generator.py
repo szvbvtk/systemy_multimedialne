@@ -4,34 +4,30 @@ import matplotlib.pyplot as plt
 import numpy as np
 from io import BytesIO
 
-document = Document()
-document.add_heading('Zmień ten tytuł',0) # tworzenie nagłówków druga wartość to poziom nagłówka 
+def generate_report(files, fsize_values):
+    document = Document()
+    document.add_heading('Analiza sinusoidalnych sygnałów', 0)
 
+    for file in files:
+        document.add_heading(f"Plik {file}", level=2)
 
-files=['sin60Hz.wav','sin440Hz.wav','sin8000Hz.wav']
-Margins=[[0,0.02],[0.133,0.155]]
-for file in files:
-    document.add_heading('Plik - {}'.format(file),2)
-    for i,Margin in enumerate(Margins):
-        document.add_heading('Time margin {}'.format(Margin),3) # nagłówek sekcji, mozę być poziom wyżej
-        fig ,axs = plt.subplots(2,1,figsize=(10,7)) # tworzenie plota
-    
-        ############################################################
-        # Tu wykonujesz jakieś funkcje i rysujesz wykresy
-        ############################################################
-        
-        fig.suptitle('Time margin {}'.format(Margin)) # Tytuł wykresu
-        fig.tight_layout(pad=1.5) # poprawa czytelności 
-        memfile = BytesIO() # tworzenie bufora
-        fig.savefig(memfile) # z zapis do bufora 
-        
-    
-        document.add_picture(memfile, width=Inches(6)) # dodanie obrazu z bufora do pliku
-        
-        memfile.close()
-        ############################################################
-        # Tu dodajesz dane tekstowe - wartosci, wyjscie funkcji ect.
-        document.add_paragraph('wartość losowa = {}'.format(np.random.rand(1))) 
-        ############################################################
+        for fsize in fsize_values:
+            document.add_heaqding(f"Rozmiar okna FFT: {fsize}", level=3)
 
-document.save('report.docx') # zapis do pliku
+            fig, axs = plt.subplots(2, 1, figsize=(10, 7))
+
+            # Tu wykonujesz jakieś funkcje i rysujesz wykresy
+
+            fig.suptitle(f"Rozmiar okna FFT: {fsize}")
+            fig.tight_layout(pad=1.5)
+            memfile = BytesIO()
+            fig.savefig(memfile)
+
+            document.add_picture(memfile, width=Inches(6))
+
+            memfile.close()
+
+            # Tu dodajesz dane tekstowe - wartości, wyjście funkcji etc.
+            document.add_paragraph(f"Wartość losowa = {np.random.rand(1)}")
+
+    document.save("report.docx")
