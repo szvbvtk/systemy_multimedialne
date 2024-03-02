@@ -9,7 +9,7 @@ import scipy.fftpack as fft
 data, fs = sf.read("SOUND_INTRO/sound1.wav", dtype="float32")
 
 
-print(f"Dtype: {data.dtype}\nShape: {data.shape}")
+print(f"Dtype: {data.dtype}\nShape: {data.shape}\nfs: {fs}")
 
 # Play the sound
 # sd.play(data, fs)
@@ -50,32 +50,32 @@ sf.write("sound_mix.wav", sound_mono, fs)
 # plt.show()
 
 # Plot the spectrum
-fsize = 2**8
-fig, ax = plt.subplots(3, 1)
-yf_left = fft.fft(sound_left_channel, fsize)
-yf_right = fft.fft(sound_right_channel, fsize)
-yf_mix = fft.fft(sound_mono, fsize)
+# fsize = 2**8
+# fig, ax = plt.subplots(3, 1)
+# yf_left = fft.fft(sound_left_channel, fsize)
+# yf_right = fft.fft(sound_right_channel, fsize)
+# yf_mix = fft.fft(sound_mono, fsize)
 
-x = np.arange(0, fs / 2, fs / fsize)
+# x = np.arange(0, fs / 2, fs / fsize)
 
-ax[0].plot(x, 20 * np.log10(np.abs(yf_left[: fsize // 2])))
-ax[0].set_title("Left Channel")
-ax[0].set_xlabel("Frequency (Hz)")
-ax[0].set_ylabel("Amplitude (dB)")
+# ax[0].plot(x, 20 * np.log10(np.abs(yf_left[: fsize // 2])))
+# ax[0].set_title("Left Channel")
+# ax[0].set_xlabel("Frequency (Hz)")
+# ax[0].set_ylabel("Amplitude (dB)")
 
-ax[1].plot(x, 20 * np.log10(np.abs(yf_right[: fsize // 2]) + 1e-10))
-ax[1].set_title("Right Channel")
-ax[1].set_xlabel("Frequency (Hz)")
-ax[1].set_ylabel("Amplitude (dB)")
+# ax[1].plot(x, 20 * np.log10(np.abs(yf_right[: fsize // 2]) + 1e-10))
+# ax[1].set_title("Right Channel")
+# ax[1].set_xlabel("Frequency (Hz)")
+# ax[1].set_ylabel("Amplitude (dB)")
 
-ax[2].plot(x, 20 * np.log10(np.abs(yf_mix[: fsize // 2])))
-ax[2].set_title("Mix Channel")
-ax[2].set_xlabel("Frequency (Hz)")
-ax[2].set_ylabel("Amplitude (dB)")
+# ax[2].plot(x, 20 * np.log10(np.abs(yf_mix[: fsize // 2])))
+# ax[2].set_title("Mix Channel")
+# ax[2].set_xlabel("Frequency (Hz)")
+# ax[2].set_ylabel("Amplitude (dB)")
 
-plt.show()
+# plt.show()
 
-print(sound_right_channel)
+# print(sound_right_channel)
 
 
 

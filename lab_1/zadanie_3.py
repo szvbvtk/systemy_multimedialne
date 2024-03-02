@@ -10,48 +10,50 @@ import soundfile as sf
 
 def plotAudio(Signal, fs, fsize, axs, TimeMargin=[0, 0.02]):
 
-    x = np.arange(len(Signal)) / fs
-    axs[0].plot(x, Signal)
+    x_time = np.arange(len(Signal)) / fs
+    x_frequency = np.arange(0, fs / 2, fs / fsize)
+    spectrum_halved = fft.fft(Signal, fsize)[: fsize // 2]
+    spectrum_dB = 20 * np.log10(np.abs(spectrum_halved))
+
+    axs[0].plot(x_time, Signal)
     axs[0].set_title("Audio Signal")
     axs[0].set_xlabel("Time (s)")
     axs[0].set_ylabel("Amplitude")
     axs[0].set_xlim(TimeMargin)
     axs[0].grid()
 
-    spectrum = fft.fft(Signal, fsize)
-    spectrum_dB_half = 20 * np.log10(np.abs(spectrum[: fsize // 2]))
-    x_freqs = np.arange(0, fs / 2, fs / fsize)
-    axs[1].plot(x_freqs, spectrum_dB_half)
+    axs[1].plot(x_frequency, spectrum_dB)
     axs[1].set_title("Spectrum")
     axs[1].set_xlabel("Frequency (Hz)")
     axs[1].set_ylabel("Amplitude")
     axs[1].grid()
 
-    max_amplitude_index = np.argmax(spectrum_dB_half)
-    max_amplitude = spectrum_dB_half[max_amplitude_index]
-    max_frequency = x_freqs[max_amplitude_index]
+    max_amplitude_index = np.argmax(spectrum_dB)
+    peak_amplitude = spectrum_dB[max_amplitude_index]
+    peak_frequency = x_frequency[max_amplitude_index]
 
-    # axs[1].annotate("Amplituda maks.: {:.2f} dB".format(max_amplitude), xy=(max_frequency, max_amplitude), xytext=(max_frequency, max_amplitude + 3))
-
-    return max_frequency, max_amplitude
-    return 0,0
+    return peak_frequency, peak_amplitude
 
 
-def generate_report(files, fsizes):
+def generate_report(files, fsizes, output_file="report.docx"):
     document = Document()
     document.add_heading("Analiza sinusoidalnych sygnałów", 0)
 
     for file in files:
         document.add_heading(f"Plik {file}", level=2)
 
+        # ----------------------------------------------------------------
         signal, fs = sf.read(file)
+        # ----------------------------------------------------------------
 
         for fsize in fsizes:
             document.add_heading(f"Rozmiar okna FFT: {fsize}", level=3)
 
             fig, axs = plt.subplots(2, 1, figsize=(10, 7))
 
-            max_frequency, max_amplitude = plotAudio(signal, fs, fsize, axs)
+            # ----------------------------------------------------------------
+            peak_frequency, peak_amplitude = plotAudio(signal, fs, fsize, axs)
+            # ----------------------------------------------------------------
 
             fig.suptitle(f"Rozmiar okna FFT: {fsize}")
             fig.tight_layout(pad=1.5)
@@ -63,10 +65,14 @@ def generate_report(files, fsizes):
             memfile.close()
 
             # Tu dodajesz dane tekstowe - wartości, wyjście funkcji etc.
-            document.add_paragraph(f"Wartość losowa = {np.random.rand(1)}")
+            # document.add_paragraph(f"Wartość losowa = {np.random.rand(1)}")
+            document.add_paragraph(
+                f"Największa amplituda: {peak_amplitude:.3f} dB dla częstotliwości {peak_frequency:.3f} Hz"
+            )
 
-    document.save("report.docx")
+    document.save(output_file)
     print("Report generated")
+
 
 def test(files, fsizes):
     for file in files:
@@ -75,7 +81,7 @@ def test(files, fsizes):
         for fsize in fsizes:
             fig, axs = plt.subplots(2, 1, figsize=(10, 7))
             plotAudio(signal, fs, fsize, axs)
-            
+
 
 if __name__ == "__main__":
     fsizes = [2**8, 2**12, 2**16]
@@ -100,7 +106,7 @@ if __name__ == "__main__":
     #         plotAudio(signal, fs, fsize, axs)
     #         plt.show()
 
-    generate_report(files, fsizes)
+    generate_report(files, fsizes, "zadanie_3.docx")
 
     # fig, axs = plt.subplots(2, 1, figsize=(10, 7))
     # test(files, fsizes)
