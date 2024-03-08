@@ -64,8 +64,6 @@ def generate_report(files, fsizes, output_file="report.docx"):
 
             memfile.close()
 
-            # Tu dodajesz dane tekstowe - wartości, wyjście funkcji etc.
-            # document.add_paragraph(f"Wartość losowa = {np.random.rand(1)}")
             document.add_paragraph(
                 f"Największa amplituda: {peak_amplitude:.3f} dB dla częstotliwości {peak_frequency:.3f} Hz"
             )
