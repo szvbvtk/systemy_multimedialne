@@ -3,6 +3,9 @@ import numpy as np
 from math import ceil, floor
 import cv2
 from enum import Enum
+import matplotlib
+
+matplotlib.use("TkAgg")
 
 
 def imgToUInt8(image):
@@ -60,9 +63,8 @@ def nearest_neighbor(image, scale):
         raise ValueError("Image array must be 2D or 3D")
 
     # -1 to avoid out of bounds, becouse we start from 0
-    rows = np.ceil(np.linspace(0, height - 1, new_height)).astype(np.int64)
-    cols = np.ceil(np.linspace(0, width - 1, new_width)).astype(np.int64)
-
+    rows = np.ceil(np.linspace(0, height - 1, new_height)).astype(np.int32)
+    cols = np.ceil(np.linspace(0, width - 1, new_width)).astype(np.int32)
 
     for i in range(new_height):
         for j in range(new_width):
@@ -123,20 +125,25 @@ def bilinear_interpolation(image, scale):
     return new_image
 
 
-class ReduceMethod(Enum):
+class Method(Enum):
     MEAN = 1
     MEDIAN = 2
     WEIGHTED_MEAN = 3
+    NEAREST_NEIGHBOR = 4
+    BILINEAR_INTERPOLATION = 5
 
 
-def reduce_image(image, scale, method=ReduceMethod.MEAN):
+def scale_down(image, scale, method=Method.MEAN):
     height, width = image.shape[0], image.shape[1]
 
     new_height = ceil(height / scale)
     new_width = ceil(width / scale)
 
-    if not isinstance(method, ReduceMethod):
+    if not isinstance(method, Method):
         raise ValueError("Method must be of type Method")
+
+    if method not in (Method.MEAN, Method.MEDIAN, Method.WEIGHTED_MEAN):
+        raise ValueError("Method must be MEAN, MEDIAN or WEIGHTED_MEAN")
 
     # grayscale or color image
     if len(image.shape) == 2:
@@ -147,16 +154,16 @@ def reduce_image(image, scale, method=ReduceMethod.MEAN):
     else:
         raise ValueError("Image array must be 2D or 3D")
 
-    rows = np.linspace(0, height - 1, new_height).astype(np.uint8)
-    cols = np.linspace(0, width - 1, new_width).astype(np.uint8)
+    rows = np.linspace(0, height - 1, new_height).astype(np.int32)
+    cols = np.linspace(0, width - 1, new_width).astype(np.int32)
 
     for i in range(new_height):
         for j in range(new_width):
             ix = np.round(rows[i] + np.arange(-3, 4))
             iy = np.round(cols[j] + np.arange(-3, 4))
 
-            ix = ix.clip(0, height - 1).astype(np.uint8)
-            iy = iy.clip(0, width - 1).astype(np.uint8)
+            ix = ix.clip(0, height - 1).astype(np.int32)
+            iy = iy.clip(0, width - 1).astype(np.int32)
 
             fragment = image[ix, iy]
             # these two should do the same, must be tested
@@ -164,45 +171,74 @@ def reduce_image(image, scale, method=ReduceMethod.MEAN):
             # for k in range(channels):
             #     new_image[i, j, k] = np.mean(fragment[:, :, k])
 
-            if method == ReduceMethod.MEAN:
+            if method == Method.MEAN:
                 new_image[i, j] = np.mean(fragment, axis=(0, 1))
-            elif method == ReduceMethod.MEDIAN:
+            elif method == Method.MEDIAN:
                 new_image[i, j] = np.median(fragment, axis=(0, 1))
-            elif method == ReduceMethod.WEIGHTED_MEAN:
-                # weights = np.array([5, 10, 15, 20, 15, 10, 5])
-                # ix_weighted = np.dot(fragment, weights) / np.sum(weights)
-                pass
+            elif method == Method.WEIGHTED_MEAN:
+                weights = np.array([5, 10, 15, 20, 15, 10, 5])
+
+                # ix = (np.sum(np.multiply(ix, weights)) / np.sum(weights)).astype(
+                #     np.int32
+                # )
+                # iy = (np.sum(np.multiply(iy, weights)) / np.sum(weights)).astype(
+                #     np.int32
+                # )
+
+                # check whether this gives the same result as the above
+                ix = np.average(ix, weights=weights).astype(np.int32)
+                iy = np.average(iy, weights=weights).astype(np.int32)
+
+                new_image[i, j] = image[ix, iy]
+
+    return new_image
+
+
+def plot_images(images, titles, figsize=(15, 10)):
+    """
+    Plot images
+    :param images: list of images
+    :param titles: list of titles
+    :param figsize: figure size
+    :return: None
+    """
+
+    if len(images) != len(titles):
+        raise ValueError("Number of images is not equal to number of titles")
+
+    fig, axs = plt.subplots(1, len(images), figsize=figsize)
+
+    for i, image in enumerate(images):
+        axs[i].imshow(image)
+        axs[i].set_title(titles[i])
+        # axs[i].axis("off")
+
+    return fig
+
+
+def show_figure(fig):
+    """
+    Show figure
+    :param fig: figure
+    :return: None
+    """
+
+    # don not know why it is automatically closed after the first plot is shown (using fig.show, plt.show works perfectly fine)
+    fig.show()
+    plt.waitforbuttonpress()
+
+
+def save_figure(fig, path, dpi, format, name):
+    # TO DO
+    pass
 
 
 if __name__ == "__main__":
     # image = cv2.imread("IMG_SMALL/SMALL_0003.png")
-    image = read_image("IMG_SMALL/SMALL_0003.png")
-    print(image.dtype)
-    # image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    image = read_image("IMG_SMALL/SMALL_0002.png")
 
-    # image= np.zeros((3,3,3),dtype=np.uint8)
-    # image[1,1,:]=255
-
-    new_image = nearest_neighbor(image, 4)
-    plt.imshow(new_image)
-    plt.show()
-    # plt.imsave("bilinear.png", new_image)
-
-    # fig, axs = plt.subplots(1, 2, figsize=(10, 5))
-    # axs[0].imshow(image)
-    # axs[0].set_title("Original Image")
-    # axs[1].imshow(new_image)
-    # axs[1].set_title("Scaled Image")
-    # plt.show()
-
-    # image = read_image("IMG_BIG/BIG_0003.jpg")
-    # image = read_image("IMG_SMALL/SMALL_0003.png")
-    # new_image = reduce_image(image, 2, ReduceMethod.MEAN)
+    new_image = scale_down(image, 2, Method.WEIGHTED_MEAN)
     # new_image = nearest_neighbor(image, 2)
 
-    # fig, axs = plt.subplots(1, 2, figsize=(10, 5))
-    # axs[0].imshow(image)
-    # axs[0].set_title("Original Image")
-    # axs[1].imshow(new_image)
-    # axs[1].set_title("Scaled Image")
-    # plt.show()
+    fig = plot_images([image, new_image], ["Original", "Reduced"])
+    show_figure(fig)
