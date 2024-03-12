@@ -125,24 +125,65 @@ def bilinear_interpolation(image, scale):
     return new_image
 
 
-class Method(Enum):
+# class Method(Enum):
+#     MEAN = 1
+#     MEDIAN = 2
+#     WEIGHTED_MEAN = 3
+#     NEAREST_NEIGHBOR = 4
+#     BILINEAR_INTERPOLATION = 5
+
+
+class ScaleUpMethod(Enum):
+    NEAREST_NEIGHBOR = 1
+    BILINEAR_INTERPOLATION = 2
+
+
+class ScaleDownMethod(Enum):
     MEAN = 1
     MEDIAN = 2
     WEIGHTED_MEAN = 3
-    NEAREST_NEIGHBOR = 4
-    BILINEAR_INTERPOLATION = 5
 
 
-def scale_down(image, scale, method=Method.MEAN):
+def scale_up(image, scale, method=ScaleUpMethod.NEAREST_NEIGHBOR):
+    if not isinstance(method, ScaleUpMethod):
+        raise ValueError("Method must be of type Method")
+
+    if method not in (
+        ScaleUpMethod.NEAREST_NEIGHBOR,
+        ScaleUpMethod.BILINEAR_INTERPOLATION,
+    ):
+        print(method)
+        raise ValueError("Method must be NEAREST_NEIGHBOR or BILINEAR_INTERPOLATION")
+
+    if method == ScaleUpMethod.NEAREST_NEIGHBOR:
+        new_image = nearest_neighbor(image, scale)
+    elif method == ScaleUpMethod.BILINEAR_INTERPOLATION:
+        new_image = bilinear_interpolation(image, scale)
+
+    return new_image
+
+
+def scale_down(image, scale, method=ScaleDownMethod.MEAN):
+    """
+    Scale down image
+    :param image: input image
+    :param scale: scale factor
+    :param method: method, MEAN, MEDIAN, WEIGHTED_MEAN
+    :return: new image
+    """
     height, width = image.shape[0], image.shape[1]
 
     new_height = ceil(height / scale)
     new_width = ceil(width / scale)
 
-    if not isinstance(method, Method):
+    if not isinstance(method, ScaleDownMethod):
         raise ValueError("Method must be of type Method")
 
-    if method not in (Method.MEAN, Method.MEDIAN, Method.WEIGHTED_MEAN):
+    if method not in (
+        ScaleDownMethod.MEAN,
+        ScaleDownMethod.MEDIAN,
+        ScaleDownMethod.WEIGHTED_MEAN,
+    ):
         raise ValueError("Method must be MEAN, MEDIAN or WEIGHTED_MEAN")
 
     # grayscale or color image
@@ -171,11 +212,11 @@ def scale_down(image, scale, method=Method.MEAN):
             # for k in range(channels):
             #     new_image[i, j, k] = np.mean(fragment[:, :, k])
 
-            if method == Method.MEAN:
+            if method == ScaleDownMethod.MEAN:
                 new_image[i, j] = np.mean(fragment, axis=(0, 1))
-            elif method == Method.MEDIAN:
+            elif method == ScaleDownMethod.MEDIAN:
                 new_image[i, j] = np.median(fragment, axis=(0, 1))
-            elif method == Method.WEIGHTED_MEAN:
+            elif method == ScaleDownMethod.WEIGHTED_MEAN:
                 weights = np.array([5, 10, 15, 20, 15, 10, 5])
 
                 # ix = (np.sum(np.multiply(ix, weights)) / np.sum(weights)).astype(
@@ -190,6 +231,24 @@ def scale_down(image, scale, method=Method.MEAN):
                 iy = np.average(iy, weights=weights).astype(np.int32)
 
                 new_image[i, j] = image[ix, iy]
+
+    return new_image
+
+
+def scale_image(image, scale, method=None):
+    """
+    Scale image
+    :param image: input image
+    :param scale: scale factor, < 1 for downscaling, > 1 for upscaling
+    :param method: method
+    :return: new image
+    """
+
+    if scale < 1:
+        scale = 1 / scale
+        new_image = scale_down(image, scale, method=ScaleDownMethod.WEIGHTED_MEAN)
+    else:
+        new_image = scale_up(image, scale, method, ScaleUpMethod.NEAREST_NEIGHBOR)
 
     return new_image
 
@@ -237,8 +296,12 @@ if __name__ == "__main__":
     # image = cv2.imread("IMG_SMALL/SMALL_0003.png")
     image = read_image("IMG_SMALL/SMALL_0002.png")
 
-    new_image = scale_down(image, 2, Method.WEIGHTED_MEAN)
-    # new_image = nearest_neighbor(image, 2)
+    # new_image = scale_down(image, 0.3, Method.WEIGHTED_MEAN)
+    # new_image = scale_image(image, 2, Method.BILINEAR_INTERPOLATION)
+    new_image = scale_image(image, 0.5, ScaleDownMethod.WEIGHTED_MEAN)
 
     fig = plot_images([image, new_image], ["Original", "Reduced"])
     show_figure(fig)
+
+    # do refaktoryzacji, w szczegolnosci scale up (tak aby przypominało scale down - brak osobnych funkcji tylko jedna)
+    # sprawdzenie czy zakomentowany kod daje te same wyniki co odkomentowany
