@@ -46,7 +46,7 @@ def nearest_neighbor(image, scale):
     :return: new image
     """
 
-    height, width = image.shape[0], image.shape[0]
+    height, width = image.shape[0], image.shape[1]
     new_height = ceil(height * scale)
     new_width = ceil(width * scale)
 
@@ -55,13 +55,14 @@ def nearest_neighbor(image, scale):
         new_image = np.empty((new_height, new_width), dtype=np.uint8)
     elif len(image.shape) == 3:
         channels = image.shape[2]
-        new_image = np.empty((new_height, new_width, image.shape[2]), dtype=np.uint8)
+        new_image = np.empty((new_height, new_width, channels), dtype=np.uint8)
     else:
         raise ValueError("Image array must be 2D or 3D")
 
     # -1 to avoid out of bounds, becouse we start from 0
-    rows = np.ceil(np.linspace(0, height - 1, new_height)).astype(np.uint8)
-    cols = np.ceil(np.linspace(0, width - 1, new_width)).astype(np.uint8)
+    rows = np.ceil(np.linspace(0, height - 1, new_height)).astype(np.int64)
+    cols = np.ceil(np.linspace(0, width - 1, new_width)).astype(np.int64)
+
 
     for i in range(new_height):
         for j in range(new_width):
@@ -182,15 +183,17 @@ if __name__ == "__main__":
     # image= np.zeros((3,3,3),dtype=np.uint8)
     # image[1,1,:]=255
 
-    new_image = bilinear_interpolation(image, 4)
+    new_image = nearest_neighbor(image, 4)
+    plt.imshow(new_image)
+    plt.show()
     # plt.imsave("bilinear.png", new_image)
 
-    fig, axs = plt.subplots(1, 2, figsize=(10, 5))
-    axs[0].imshow(image)
-    axs[0].set_title("Original Image")
-    axs[1].imshow(new_image)
-    axs[1].set_title("Scaled Image")
-    plt.show()
+    # fig, axs = plt.subplots(1, 2, figsize=(10, 5))
+    # axs[0].imshow(image)
+    # axs[0].set_title("Original Image")
+    # axs[1].imshow(new_image)
+    # axs[1].set_title("Scaled Image")
+    # plt.show()
 
     # image = read_image("IMG_BIG/BIG_0003.jpg")
     # image = read_image("IMG_SMALL/SMALL_0003.png")
