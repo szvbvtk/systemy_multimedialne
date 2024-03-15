@@ -400,8 +400,8 @@ def main_scale_down():
 def main_canny_test():
     fragment = None
 
-    dir = "IMG_BIG"
-    filename = "BIG_0003.jpg"
+    dir = "IMG_SMALL"
+    filename = "SMALL_0003.png"
 
     format = filename.split(".")[-1]
 
@@ -409,38 +409,38 @@ def main_canny_test():
         f"{dir}/{filename}", convertToUint8=True, color_space=cv2.COLOR_BGR2RGB
     )
 
-    fragment = slice_image(image, 0, 2300, 1200, 1200)
+    # fragment = slice_image(image, 0, 2300, 1200, 1200)
 
     if fragment is None:
         fragment = image
 
-    scale = 8
+    scale = 0.5
 
-    # fragment_mean = scale_image(fragment, scale, ScaleDownMethod.MEAN)
-    # fragment_median = scale_image(fragment, scale, ScaleDownMethod.MEDIAN)
-    # fragment_weighted_mean = scale_image(fragment, scale, ScaleDownMethod.WEIGHTED_MEAN)
-
-    # fragment = cv2.Canny(fragment, 50, 150)
-    # fragment_mean = cv2.Canny(fragment_mean, 50, 150)
-    # fragment_median = cv2.Canny(fragment_median, 50, 150)
-    # fragment_weighted_mean = cv2.Canny(fragment_weighted_mean, 50, 150)
-
-    fragment_nn = scale_image(fragment, 3, ScaleUpMethod.NEAREST_NEIGHBOR)
-    fragment_bi = scale_image(fragment, 3, ScaleUpMethod.BILINEAR_INTERPOLATION)
+    fragment_mean = scale_image(fragment, scale, ScaleDownMethod.MEAN)
+    fragment_median = scale_image(fragment, scale, ScaleDownMethod.MEDIAN)
+    fragment_weighted_mean = scale_image(fragment, scale, ScaleDownMethod.WEIGHTED_MEAN)
 
     fragment = cv2.Canny(fragment, 50, 150)
-    fragment_nn = cv2.Canny(fragment_nn, 50, 150)
-    fragment_bi = cv2.Canny(fragment_bi, 50, 150)
+    fragment_mean = cv2.Canny(fragment_mean, 50, 150)
+    fragment_median = cv2.Canny(fragment_median, 50, 150)
+    fragment_weighted_mean = cv2.Canny(fragment_weighted_mean, 50, 150)
 
-    fig = plot_images(
-        [fragment, fragment_nn, fragment_bi],
-        ["Oryginalne", "Nearest neighbor", "Bilinear interpolation"],
-    )
+    # fragment_nn = scale_image(fragment, 3, ScaleUpMethod.NEAREST_NEIGHBOR)
+    # fragment_bi = scale_image(fragment, 3, ScaleUpMethod.BILINEAR_INTERPOLATION)
+
+    # fragment = cv2.Canny(fragment, 50, 150)
+    # fragment_nn = cv2.Canny(fragment_nn, 50, 150)
+    # fragment_bi = cv2.Canny(fragment_bi, 50, 150)
 
     # fig = plot_images(
-    #     [fragment, fragment_mean, fragment_median, fragment_weighted_mean],
-    #     ["Oryginalne", "Mean", "Median", "Weighted mean"],
+    #     [fragment, fragment_nn, fragment_bi],
+    #     ["Oryginalne", "Nearest neighbor", "Bilinear interpolation"],
     # )
+
+    fig = plot_images(
+        [fragment, fragment_mean, fragment_median, fragment_weighted_mean],
+        ["Oryginalne", "Mean", "Median", "Weighted mean"],
+    )
 
     # print(fragment.shape[0], fragment_mean.shape[0], fragment_median.shape[0], fragment_weighted_mean.shape[0])
 
