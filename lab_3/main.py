@@ -4,6 +4,7 @@ from math import ceil, floor
 import cv2
 from enum import Enum
 import matplotlib
+import os
 
 matplotlib.use("TkAgg")
 
@@ -125,14 +126,6 @@ def bilinear_interpolation(image, scale):
     return new_image
 
 
-# class Method(Enum):
-#     MEAN = 1
-#     MEDIAN = 2
-#     WEIGHTED_MEAN = 3
-#     NEAREST_NEIGHBOR = 4
-#     BILINEAR_INTERPOLATION = 5
-
-
 class ScaleUpMethod(Enum):
     NEAREST_NEIGHBOR = 1
     BILINEAR_INTERPOLATION = 2
@@ -152,7 +145,6 @@ def scale_up(image, scale, method=ScaleUpMethod.NEAREST_NEIGHBOR):
         ScaleUpMethod.NEAREST_NEIGHBOR,
         ScaleUpMethod.BILINEAR_INTERPOLATION,
     ):
-        print(method)
         raise ValueError("Method must be NEAREST_NEIGHBOR or BILINEAR_INTERPOLATION")
 
     if method == ScaleUpMethod.NEAREST_NEIGHBOR:
@@ -191,7 +183,7 @@ def scale_down(image, scale, method=ScaleDownMethod.MEAN):
         new_image = np.empty((new_height, new_width), dtype=np.uint8)
     elif len(image.shape) == 3:
         channels = image.shape[2]
-        new_image = np.empty((new_height, new_width, image.shape[2]), dtype=np.uint8)
+        new_image = np.empty((new_height, new_width, channels), dtype=np.uint8)
     else:
         raise ValueError("Image array must be 2D or 3D")
 
@@ -206,29 +198,33 @@ def scale_down(image, scale, method=ScaleDownMethod.MEAN):
             ix = ix.clip(0, height - 1).astype(np.int32)
             iy = iy.clip(0, width - 1).astype(np.int32)
 
-            fragment = image[ix, iy]
-            # these two should do the same, must be tested
-            # new_image[i, j] = np.mean(fragment, axis=(0, 1))
-            # for k in range(channels):
-            #     new_image[i, j, k] = np.mean(fragment[:, :, k])
+            fragment = image[ix, iy, :]
 
-            if method == ScaleDownMethod.MEAN:
-                new_image[i, j] = np.mean(fragment, axis=(0, 1))
-            elif method == ScaleDownMethod.MEDIAN:
-                new_image[i, j] = np.median(fragment, axis=(0, 1))
+            if method != ScaleDownMethod.WEIGHTED_MEAN:
+                # new_image[i, j] = np.mean(fragment, axis=(0, 1))
+                if len(image.shape) < 3:
+                    new_image[i, j] = np.mean(fragment)
+                elif len(image.shape) == 3:
+                    for channel in range(channels):
+                        if method == ScaleDownMethod.MEAN:
+                            new_image[i, j, channel] = np.mean(image[ix, iy, channel])
+                        elif method == ScaleDownMethod.MEDIAN:
+                            new_image[i, j, channel] = np.median(image[ix, iy, channel])
+
             elif method == ScaleDownMethod.WEIGHTED_MEAN:
-                weights = np.array([5, 10, 15, 20, 15, 10, 5])
+                weights = np.array([7, 9, 12, 15, 11, 4, 18])
 
-                # ix = (np.sum(np.multiply(ix, weights)) / np.sum(weights)).astype(
+                # ix1 = (np.sum(np.multiply(ix, weights)) / np.sum(weights)).astype(
                 #     np.int32
                 # )
                 # iy = (np.sum(np.multiply(iy, weights)) / np.sum(weights)).astype(
                 #     np.int32
                 # )
 
-                # check whether this gives the same result as the above
                 ix = np.average(ix, weights=weights).astype(np.int32)
                 iy = np.average(iy, weights=weights).astype(np.int32)
+
+                # print(np.equal(ix, ix1))
 
                 new_image[i, j] = image[ix, iy]
 
@@ -244,11 +240,20 @@ def scale_image(image, scale, method=None):
     :return: new image
     """
 
+    image_copy = image.copy()
+
     if scale < 1:
         scale = 1 / scale
-        new_image = scale_down(image, scale, method=ScaleDownMethod.WEIGHTED_MEAN)
+
+        if method is None:
+            method = ScaleDownMethod.MEAN
+
+        new_image = scale_down(image_copy, scale, method=method)
     else:
-        new_image = scale_up(image, scale, method, ScaleUpMethod.NEAREST_NEIGHBOR)
+        if method is None:
+            method = ScaleUpMethod.NEAREST_NEIGHBOR
+
+        new_image = scale_up(image_copy, scale, method=method)
 
     return new_image
 
@@ -270,7 +275,9 @@ def plot_images(images, titles, figsize=(15, 10)):
     for i, image in enumerate(images):
         axs[i].imshow(image)
         axs[i].set_title(titles[i])
-        # axs[i].axis("off")
+        axs[i].axis("on")
+
+    plt.tight_layout()
 
     return fig
 
@@ -288,20 +295,123 @@ def show_figure(fig):
 
 
 def save_figure(fig, path, dpi, format, name):
-    # TO DO
-    pass
+    """
+    Save figure
+    :param fig: figure
+    :param path: path
+    :param dpi: dpi
+    :param format: format
+    :param name: name
+    :return: None
+    """
+
+    i = 1
+    while os.path.exists(f"{path}/{name}_{i}.{format}"):
+        i += 1
+
+    fig.savefig(f"{path}/{name}_{i}.{format}", dpi=dpi, format=format)
+
+
+def slice_image(image, x, y, height, width):
+    """
+    Slice image
+    :param image: input image
+    :param x: x position
+    :param y: y position
+    :param height: height
+    :param width: width
+    """
+
+    y_stop = min(y + height, image.shape[0])
+    x_stop = min(x + width, image.shape[1])
+
+    if y_stop - y != height or x_stop - x != width:
+        print(
+            f"Couldn't slice the image, because the fragment is out of bounds. New fragment size: {y_stop - y}x{x_stop - x}"
+        )
+
+    return image[y:y_stop, x:x_stop]
+
+
+def main_scale_up():
+    fragment = None
+
+    dir = "IMG_SMALL"
+    filename = "SMALL_0003.png"
+
+    format = filename.split(".")[-1]
+
+    image = read_image(
+        f"{dir}/{filename}", convertToUint8=True, color_space=cv2.COLOR_BGR2RGB
+    )
+
+    fragment = slice_image(image, 45, 235, 40, 40)
+
+    if fragment is None:
+        fragment = image
+
+    scale = 5
+
+    fragment_nn = scale_image(fragment, scale, ScaleUpMethod.NEAREST_NEIGHBOR)
+    fragment_bi = scale_image(fragment, scale, ScaleUpMethod.BILINEAR_INTERPOLATION)
+
+    fig = plot_images(
+        [fragment, fragment_nn, fragment_bi],
+        ["Oryginalne", "Nearest neighbor", "Bilinear interpolation"],
+    )
+    show_figure(fig)
+    save_figure(fig, "./OUTPUT", 600, format, f"{filename}_upscaling_{scale}")
+
+
+def main_scale_down():
+    fragment = None
+
+    dir = "IMG_BIG"
+    filename = "BIG_0003.jpg"
+
+    format = filename.split(".")[-1]
+
+    image = read_image(
+        f"{dir}/{filename}", convertToUint8=True, color_space=cv2.COLOR_BGR2RGB
+    )
+
+    fragment = slice_image(image, 300, 4200, 300, 300)
+
+    if fragment is None:
+        fragment = image
+
+    scale = 0.8
+
+    fragment_mean = scale_image(fragment, scale, ScaleDownMethod.MEAN)
+    fragment_median = scale_image(fragment, scale, ScaleDownMethod.MEDIAN)
+    fragment_weighted_mean = scale_image(fragment, scale, ScaleDownMethod.WEIGHTED_MEAN)
+
+    fig = plot_images(
+        [fragment, fragment_mean, fragment_median, fragment_weighted_mean],
+        ["Oryginalne", "Mean", "Median", "Weighted mean"],
+    )
+
+    # print(fragment.shape[0], fragment_mean.shape[0], fragment_median.shape[0], fragment_weighted_mean.shape[0])
+
+    show_figure(fig)
+    save_figure(fig, "./OUTPUT", 600, format, f"{filename}_downscaling_{scale}")
 
 
 if __name__ == "__main__":
-    # image = cv2.imread("IMG_SMALL/SMALL_0003.png")
-    image = read_image("IMG_SMALL/SMALL_0002.png")
+    # main_scale_up()
+    main_scale_down()
 
-    # new_image = scale_down(image, 0.3, Method.WEIGHTED_MEAN)
-    # new_image = scale_image(image, 2, Method.BILINEAR_INTERPOLATION)
-    new_image = scale_image(image, 0.5, ScaleDownMethod.WEIGHTED_MEAN)
+    # dir = "IMG_BIG"
+    # filename = "BIG_0003.jpg"
 
-    fig = plot_images([image, new_image], ["Original", "Reduced"])
-    show_figure(fig)
+    # image = read_image(
+    #     f"{dir}/{filename}", convertToUint8=True, color_space=cv2.COLOR_BGR2RGB
+    # )
 
-    # do refaktoryzacji, w szczegolnosci scale up (tak aby przypominało scale down - brak osobnych funkcji tylko jedna)
-    # sprawdzenie czy zakomentowany kod daje te same wyniki co odkomentowany
+    # image = image[4200:4500, 300:600]
+
+    # plt.imshow(image)
+    # plt.show()
+
+    # print( 1/ 0.8)
+    # fragment 300 px -> 240 px fragment_mean
