@@ -10,11 +10,6 @@ matplotlib.use("TkAgg")
 
 
 def imgToUInt8(image):
-    """
-    Convert image to uint8
-    :param img: input image
-    :return: new image
-    """
 
     if image.dtype == np.uint8:
         return image
@@ -25,13 +20,6 @@ def imgToUInt8(image):
 
 
 def read_image(image_path, convertToUint8=True, color_space=cv2.COLOR_BGR2RGB):
-    """
-    Read image from file
-    :param image_path: path to the image
-    :param convertToUint8: convert image to uint8
-    :param color_space: color space
-    :return: image as numpy array
-    """
 
     image = cv2.imread(image_path)
     image = cv2.cvtColor(image, color_space)
@@ -43,18 +31,11 @@ def read_image(image_path, convertToUint8=True, color_space=cv2.COLOR_BGR2RGB):
 
 
 def nearest_neighbor(image, scale):
-    """
-    Nearest neighbor interpolation
-    :param image: input image
-    :param scale: scale factor
-    :return: new image
-    """
 
     height, width = image.shape[0], image.shape[1]
     new_height = ceil(height * scale)
     new_width = ceil(width * scale)
 
-    # grayscale or color image
     if len(image.shape) == 2:
         new_image = np.empty((new_height, new_width), dtype=np.uint8)
     elif len(image.shape) == 3:
@@ -63,31 +44,23 @@ def nearest_neighbor(image, scale):
     else:
         raise ValueError("Image array must be 2D or 3D")
 
-    # -1 to avoid out of bounds, becouse we start from 0
     rows = np.ceil(np.linspace(0, height - 1, new_height)).astype(np.int32)
     cols = np.ceil(np.linspace(0, width - 1, new_width)).astype(np.int32)
 
     for i in range(new_height):
         for j in range(new_width):
-            # replacing the pixels with the nearest one
+
             new_image[i, j] = image[rows[i], cols[j]]
 
     return new_image
 
 
 def bilinear_interpolation(image, scale):
-    """
-    Bilinear interpolation
-    :param image: input image
-    :param scale: scale factor
-    :return: new image
-    """
 
     height, width = image.shape[0], image.shape[1]
     new_height = ceil(height * scale)
     new_width = ceil(width * scale)
 
-    # grayscale or color image
     if len(image.shape) == 2:
         new_image = np.empty((new_height, new_width), dtype=np.uint8)
     elif len(image.shape) == 3:
@@ -110,7 +83,6 @@ def bilinear_interpolation(image, scale):
 
             x, y = xx - floor(xx), yy - floor(yy)
 
-            # 4 nearest pixels
             q11 = image[x1, y1]
             q12 = image[x1, y2]
             q21 = image[x2, y1]
@@ -156,13 +128,7 @@ def scale_up(image, scale, method=ScaleUpMethod.NEAREST_NEIGHBOR):
 
 
 def scale_down(image, scale, method=ScaleDownMethod.MEAN):
-    """
-    Scale down image
-    :param image: input image
-    :param scale: scale factor
-    :param method: method, MEAN, MEDIAN, WEIGHTED_MEAN
-    :return: new image
-    """
+
     height, width = image.shape[0], image.shape[1]
 
     new_height = ceil(height / scale)
@@ -178,7 +144,6 @@ def scale_down(image, scale, method=ScaleDownMethod.MEAN):
     ):
         raise ValueError("Method must be MEAN, MEDIAN or WEIGHTED_MEAN")
 
-    # grayscale or color image
     if len(image.shape) == 2:
         new_image = np.empty((new_height, new_width), dtype=np.uint8)
     elif len(image.shape) == 3:
@@ -201,7 +166,6 @@ def scale_down(image, scale, method=ScaleDownMethod.MEAN):
             fragment = image[ix, iy, :]
 
             if method != ScaleDownMethod.WEIGHTED_MEAN:
-                # new_image[i, j] = np.mean(fragment, axis=(0, 1))
                 if len(image.shape) < 3:
                     new_image[i, j] = np.mean(fragment)
                 elif len(image.shape) == 3:
@@ -232,13 +196,6 @@ def scale_down(image, scale, method=ScaleDownMethod.MEAN):
 
 
 def scale_image(image, scale, method=None):
-    """
-    Scale image
-    :param image: input image
-    :param scale: scale factor, < 1 for downscaling, > 1 for upscaling
-    :param method: method
-    :return: new image
-    """
 
     image_copy = image.copy()
 
@@ -259,13 +216,6 @@ def scale_image(image, scale, method=None):
 
 
 def plot_images(images, titles, figsize=(15, 10)):
-    """
-    Plot images
-    :param images: list of images
-    :param titles: list of titles
-    :param figsize: figure size
-    :return: None
-    """
 
     if len(images) != len(titles):
         raise ValueError("Number of images is not equal to number of titles")
@@ -283,27 +233,12 @@ def plot_images(images, titles, figsize=(15, 10)):
 
 
 def show_figure(fig):
-    """
-    Show figure
-    :param fig: figure
-    :return: None
-    """
 
-    # don not know why it is automatically closed after the first plot is shown (using fig.show, plt.show works perfectly fine)
     fig.show()
     plt.waitforbuttonpress()
 
 
 def save_figure(fig, path, dpi, format, name):
-    """
-    Save figure
-    :param fig: figure
-    :param path: path
-    :param dpi: dpi
-    :param format: format
-    :param name: name
-    :return: None
-    """
 
     i = 1
     while os.path.exists(f"{path}/{name}_{i}.{format}"):
@@ -313,14 +248,6 @@ def save_figure(fig, path, dpi, format, name):
 
 
 def slice_image(image, x, y, height, width):
-    """
-    Slice image
-    :param image: input image
-    :param x: x position
-    :param y: y position
-    :param height: height
-    :param width: width
-    """
 
     y_stop = min(y + height, image.shape[0])
     x_stop = min(x + width, image.shape[1])
@@ -400,8 +327,8 @@ def main_scale_down():
 def main_canny_test():
     fragment = None
 
-    dir = "IMG_SMALL"
-    filename = "SMALL_0003.png"
+    dir = "IMG_BIG"
+    filename = "BIG_0003.jpg"
 
     format = filename.split(".")[-1]
 
@@ -414,33 +341,33 @@ def main_canny_test():
     if fragment is None:
         fragment = image
 
-    scale = 0.5
+    scale = 3
 
-    fragment_mean = scale_image(fragment, scale, ScaleDownMethod.MEAN)
-    fragment_median = scale_image(fragment, scale, ScaleDownMethod.MEDIAN)
-    fragment_weighted_mean = scale_image(fragment, scale, ScaleDownMethod.WEIGHTED_MEAN)
-
-    fragment = cv2.Canny(fragment, 50, 150)
-    fragment_mean = cv2.Canny(fragment_mean, 50, 150)
-    fragment_median = cv2.Canny(fragment_median, 50, 150)
-    fragment_weighted_mean = cv2.Canny(fragment_weighted_mean, 50, 150)
-
-    # fragment_nn = scale_image(fragment, 3, ScaleUpMethod.NEAREST_NEIGHBOR)
-    # fragment_bi = scale_image(fragment, 3, ScaleUpMethod.BILINEAR_INTERPOLATION)
+    # fragment_mean = scale_image(fragment, scale, ScaleDownMethod.MEAN)
+    # fragment_median = scale_image(fragment, scale, ScaleDownMethod.MEDIAN)
+    # fragment_weighted_mean = scale_image(fragment, scale, ScaleDownMethod.WEIGHTED_MEAN)
 
     # fragment = cv2.Canny(fragment, 50, 150)
-    # fragment_nn = cv2.Canny(fragment_nn, 50, 150)
-    # fragment_bi = cv2.Canny(fragment_bi, 50, 150)
+    # fragment_mean = cv2.Canny(fragment_mean, 50, 150)
+    # fragment_median = cv2.Canny(fragment_median, 50, 150)
+    # fragment_weighted_mean = cv2.Canny(fragment_weighted_mean, 50, 150)
 
-    # fig = plot_images(
-    #     [fragment, fragment_nn, fragment_bi],
-    #     ["Oryginalne", "Nearest neighbor", "Bilinear interpolation"],
-    # )
+    fragment_nn = scale_image(fragment, 3, ScaleUpMethod.NEAREST_NEIGHBOR)
+    fragment_bi = scale_image(fragment, 3, ScaleUpMethod.BILINEAR_INTERPOLATION)
+
+    fragment = cv2.Canny(fragment, 50, 150)
+    fragment_nn = cv2.Canny(fragment_nn, 50, 150)
+    fragment_bi = cv2.Canny(fragment_bi, 50, 150)
 
     fig = plot_images(
-        [fragment, fragment_mean, fragment_median, fragment_weighted_mean],
-        ["Oryginalne", "Mean", "Median", "Weighted mean"],
+        [fragment, fragment_nn, fragment_bi],
+        ["Oryginalne", "Nearest neighbor", "Bilinear interpolation"],
     )
+
+    # fig = plot_images(
+    #     [fragment, fragment_mean, fragment_median, fragment_weighted_mean],
+    #     ["Oryginalne", "Mean", "Median", "Weighted mean"],
+    # )
 
     # print(fragment.shape[0], fragment_mean.shape[0], fragment_median.shape[0], fragment_weighted_mean.shape[0])
 
