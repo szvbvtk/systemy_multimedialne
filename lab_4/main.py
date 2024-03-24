@@ -41,11 +41,9 @@ def colorFit(pixel, pallet):
 # print(colorFit(0.8,paleta))
 
 
-
 pallet1bit = np.linspace(0, 1, 2).reshape(2, 1)
 pallet2bit = np.linspace(0, 1, 4).reshape(4, 1)
 pallet4bit = np.linspace(0, 1, 16).reshape(16, 1)
-
 
 
 pallet8 = np.array(
@@ -254,24 +252,25 @@ def floyd_steinberg_dithering(img, pallet):
     return img
 
 
-nr = 5
+nr = 3
+
 
 def main3():
     img = read_image(f"IMG_GS/GS_000{nr}.png", color_space=cv2.COLOR_BGR2GRAY)
 
-    pallet = pallet2bit
+    pallet = pallet4bit
 
-    fig, axs = plt.subplots(2, 2, figsize=(15, 10))
+    fig, axs = plt.subplots(2, 3, figsize=(15, 10))
     axs[0, 0].imshow(img, cmap="gray")
     axs[1, 0].imshow(kwant_colorFit(img, pallet), cmap="gray")
     axs[0, 1].imshow(ordered_dithering(img, pallet), cmap="gray")
     axs[1, 1].imshow(floyd_steinberg_dithering(img, pallet), cmap="gray")
-    # axs[1, 1].imshow(random_dithering(img), cmap="gray")
+    axs[0, 2].imshow(random_dithering(img), cmap="gray")
 
     axs[0, 0].set_title("Oryginał")
     axs[1, 0].set_title("Kwantyzacja")
     axs[0, 1].set_title("Dithering zorganizowany")
-    # axs[1, 1].set_title("Dithering losowy")
+    axs[0, 2].set_title("Dithering losowy")
     axs[1, 1].set_title("Dithering Floyda-Steinberga")
 
     for ax in axs.flat:
@@ -283,7 +282,8 @@ def main3():
 
     plt.savefig(f"OUTPUT/4bits_GS_000{nr}.jpg")
 
-    plt.show()
+    # plt.show()
+
 
 def main1():
     # img = read_image("IMG_SMALL/SMALL_0002.png", color_space=cv2.COLOR_BGR2GRAY)
@@ -343,6 +343,6 @@ def main2():
 
 if __name__ == "__main__":
     # print(np.unique(floyd_steinberg_dithering(img.copy(),np.linspace(0,1,2).reshape(2,1))).size)
-    main1()
-    main2()
-    # main3()
+    # main1()
+    # main2()
+    main3()
