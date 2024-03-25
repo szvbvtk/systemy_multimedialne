@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import sounddevice as sd
 import soundfile as sf
 from scipy.interpolate import interp1d
+import scipy.fftpack as fft
 
 
 def quantize(signal, bits):
@@ -35,8 +36,9 @@ def quantize(signal, bits):
     return data
 
 
-def decimate(signal, factor):
-    return signal[::factor]
+def decimate(signal, factor, fs):
+    fs1 = fs / factor
+    return signal[::factor], int(fs1)
 
 
 def interpolate(signal, fs, N1, kind="linear"):
@@ -54,14 +56,60 @@ def interpolate(signal, fs, N1, kind="linear"):
     y = f(t1)
     fs1 = N1 / (N / fs)
 
-    return y, fs1
+    return y, int(fs1)
+
+
+def plotAudio(Signal, fs, fsize, axs, TimeMargin=[0, 0.02]):
+
+    x_time = np.arange(len(Signal)) / fs
+    x_frequency = np.arange(0, fs / 2, fs / fsize)
+    spectrum_halved = fft.fft(Signal, fsize)[: fsize // 2]
+    spectrum_dB = 20 * np.log10(np.abs(spectrum_halved))
+
+    axs[0].scatter(x_time, Signal)
+    axs[0].set_title("Audio Signal")
+    axs[0].set_xlabel("Time (s)")
+    axs[0].set_ylabel("Amplitude")
+    axs[0].set_xlim(TimeMargin)
+    axs[0].grid()
+
+    axs[1].plot(x_frequency, spectrum_dB)
+    axs[1].set_title("Spectrum")
+    axs[1].set_xlabel("Frequency (Hz)")
+    axs[1].set_ylabel("Amplitude")
+    axs[1].grid()
+
+    max_amplitude_index = np.argmax(spectrum_dB)
+    peak_amplitude = spectrum_dB[max_amplitude_index]
+    peak_frequency = x_frequency[max_amplitude_index]
+
+    return peak_frequency, peak_amplitude
 
 
 if __name__ == "__main__":
-    sig = np.round(np.linspace(0, 255, 255, dtype=np.uint8))
+    # sig = np.round(np.linspace(0, 255, 255, dtype=np.uint8))
 
-    sig_quantized = quantize(sig, 2)
+    # sig_quantized = quantize(sig, 2)
 
-    plt.plot(sig_quantized)
-    plt.grid(True)
+    # plt.plot(sig_quantized)
+    # plt.grid(True)
+    # plt.show()
+
+    sig, fs = sf.read("SIN/sin_60Hz.wav")
+    fig, axs = plt.subplots(2, 1, figsize=(10, 7))
+    sig_decimated, fs1 = decimate(sig, 3, fs)
+    sig_interpolated, fs2 = interpolate(sig, fs, len(sig) - 40000, kind="linear")
+
+    print(fs, fs1, fs2)
+
+    peak_frequency, peak_amplitude = plotAudio(sig, fs, 1024, axs)
+    peak_frequency, peak_amplitude = plotAudio(sig_interpolated, fs2, 1024, axs)
+    # peak_frequency, peak_amplitude = plotAudio(sig_decimated, fs1, 1024, axs)
+
+    fig.suptitle(f"Rozmiar okna FFT: {1024}")
+    fig.tight_layout(pad=1.5)
     plt.show()
+
+
+
+    
