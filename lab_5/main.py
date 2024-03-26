@@ -53,7 +53,7 @@ def interpolate(signal, fs, N1, kind="linear"):
     else:
         raise ValueError("Invalid interpolation type")
 
-    y = f(t1)
+    y = f(t1).astype(signal.dtype)
     fs1 = N1 / (N / fs)
 
     return y, int(fs1)
@@ -64,9 +64,9 @@ def plotAudio(Signal, fs, fsize, axs, TimeMargin=[0, 0.02]):
     x_time = np.arange(len(Signal)) / fs
     x_frequency = np.arange(0, fs / 2, fs / fsize)
     spectrum_halved = fft.fft(Signal, fsize)[: fsize // 2]
-    spectrum_dB = 20 * np.log10(np.abs(spectrum_halved))
+    spectrum_dB = 20 * np.log10(np.abs(spectrum_halved) + np.finfo(np.float32).eps)
 
-    axs[0].scatter(x_time, Signal)
+    axs[0].plot(x_time, Signal)
     axs[0].set_title("Audio Signal")
     axs[0].set_xlabel("Time (s)")
     axs[0].set_ylabel("Amplitude")
@@ -86,30 +86,79 @@ def plotAudio(Signal, fs, fsize, axs, TimeMargin=[0, 0.02]):
     return peak_frequency, peak_amplitude
 
 
+def main_quantization():
+    dir = "SIN/"
+    filenames = ["sin_60Hz.wav", "sin_440Hz.wav", "sin_8000Hz.wav", "sin_combined.wav"]
+    output_dir = "OUTPUT/quantization"
+
+    filename = filenames[0]
+    sig, fs = sf.read(dir + filename)
+
+    for bits in (4, 8, 16, 24):
+        sig_quantized = quantize(sig, bits)
+
+        fig, axs = plt.subplots(2, 1, figsize=(10, 9))
+        # fig.tight_layout(pad=1)
+        _, _ = plotAudio(sig_quantized, fs, 1024, axs, TimeMargin=[0, 0.1])
+
+        plt.suptitle(f"Quantization: {bits} bits")
+        # plt.show()
+        plt.savefig(
+            f"{output_dir}/{filename[:-4]}_{bits}bits.png", dpi=300, format="png"
+        )
+
+
+def main_decimation():
+    dir = "SIN/"
+    filenames = ["sin_60Hz.wav", "sin_440Hz.wav", "sin_8000Hz.wav", "sin_combined.wav"]
+    output_dir = "OUTPUT/decimation"
+
+    filename = filenames[2]
+    sig, fs = sf.read(dir + filename)
+
+    for step in (2, 4, 6, 10, 24):
+        sig_decimated, fs1 = decimate(sig, step, fs)
+
+        fig, axs = plt.subplots(2, 1, figsize=(10, 9))
+        # print(fs, fs1)
+        _, _ = plotAudio(sig_decimated, fs1, 1024, axs, TimeMargin=[0, 0.001])
+
+        plt.suptitle(f"Decimation: {step}x")
+
+        # plt.show()
+
+        plt.savefig(f"{output_dir}/{filename[:-4]}_{step}x.png", dpi=300, format="png")
+
+
+def main_interpolation():
+    dir = "SIN/"
+    filenames = ["sin_60Hz.wav", "sin_440Hz.wav", "sin_8000Hz.wav", "sin_combined.wav"]
+    output_dir = "OUTPUT/interpolation"
+
+    filename = filenames[3]
+
+    sig, fs = sf.read(dir + filename)
+
+    for _kind in ("linear", "cubic"):
+        for _fs in (2000, 4000, 8000, 11999, 16000, 16953, 24000, 41000):
+            sig_interpolated, fs1 = interpolate(sig, fs, _fs, kind=_kind)
+
+            fig, axs = plt.subplots(2, 1, figsize=(10, 9))
+            _, _ = plotAudio(sig_interpolated, fs1, 1024, axs, TimeMargin=[0, 0.01])
+
+            plt.suptitle(f"Interpolation: {fs}Hz -> {_fs}Hz")
+            # plt.show()
+
+            plt.savefig(
+                f"{output_dir}/{filename[:-4]}_{_kind}_{_fs}Hz.png",
+                dpi=300,
+                format="png",
+            )
+
+
 if __name__ == "__main__":
-    # sig = np.round(np.linspace(0, 255, 255, dtype=np.uint8))
+    # main_quantization()
+    # main_decimation()
+    # main_interpolation()
 
-    # sig_quantized = quantize(sig, 2)
-
-    # plt.plot(sig_quantized)
-    # plt.grid(True)
-    # plt.show()
-
-    sig, fs = sf.read("SIN/sin_60Hz.wav")
-    fig, axs = plt.subplots(2, 1, figsize=(10, 7))
-    sig_decimated, fs1 = decimate(sig, 3, fs)
-    sig_interpolated, fs2 = interpolate(sig, fs, len(sig) - 40000, kind="linear")
-
-    print(fs, fs1, fs2)
-
-    peak_frequency, peak_amplitude = plotAudio(sig, fs, 1024, axs)
-    peak_frequency, peak_amplitude = plotAudio(sig_interpolated, fs2, 1024, axs)
-    # peak_frequency, peak_amplitude = plotAudio(sig_decimated, fs1, 1024, axs)
-
-    fig.suptitle(f"Rozmiar okna FFT: {1024}")
-    fig.tight_layout(pad=1.5)
-    plt.show()
-
-
-
-    
+    pass
