@@ -113,7 +113,7 @@ def main_decimation():
     filenames = ["sin_60Hz.wav", "sin_440Hz.wav", "sin_8000Hz.wav", "sin_combined.wav"]
     output_dir = "OUTPUT/decimation"
 
-    filename = filenames[2]
+    filename = filenames[3]
     sig, fs = sf.read(dir + filename)
 
     for step in (2, 4, 6, 10, 24):
@@ -165,7 +165,7 @@ def main_2():
     # sd.play(sig, fs)
     # sd.play(sig, fs)
     # sd.wait()
-    sig, fs = interpolate(sig, fs, 16953, kind="linear")
+    sig, fs = interpolate(sig, fs, 8000, kind="linear")
 
     sd.play(sig, fs)
     sd.wait()
@@ -176,5 +176,5 @@ if __name__ == "__main__":
     # main_decimation()
     # main_interpolation()
 
-    # main_2()
+    main_2()
     pass
