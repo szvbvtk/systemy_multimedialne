@@ -156,9 +156,25 @@ def main_interpolation():
             )
 
 
+def main_2():
+    sig, fs = sf.read("SING/sing_high1.wav")
+    print(fs)
+    # sig = quantize(sig, 4)
+    # sig, fs = decimate(sig, 24, fs)
+
+    # sd.play(sig, fs)
+    # sd.play(sig, fs)
+    # sd.wait()
+    sig, fs = interpolate(sig, fs, 16953, kind="linear")
+
+    sd.play(sig, fs)
+    sd.wait()
+
+
 if __name__ == "__main__":
     # main_quantization()
     # main_decimation()
     # main_interpolation()
 
+    # main_2()
     pass
