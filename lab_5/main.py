@@ -20,7 +20,6 @@ def quantize(signal, bits):
         m = -1
         n = 1
 
-    # nie wiem skąd sie bierze to d
     d = 2**bits - 1
 
     data = data.astype(float)
@@ -53,7 +52,9 @@ def interpolate(signal, fs, N1, kind="linear"):
     else:
         raise ValueError("Invalid interpolation type")
 
-    y = f(t1).astype(signal.dtype)
+    y = f(t1)
+    y = y.astype(signal.dtype)
+
     fs1 = N1 / (N / fs)
 
     return y, int(fs1)
