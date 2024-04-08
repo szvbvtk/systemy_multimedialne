@@ -45,7 +45,8 @@ def coder_RLE(img):
             count = 1
 
     output[[j, j + 1]] = img[-1], count
-    output = output[: j + 2]
+    j += 2
+    output = output[:j]
     # print("Size of original image: ", get_size(img))
     # print("Size of RLE image: ", get_size(output))
     # print("Compression ratio: ", get_size(img)/get_size(output))
@@ -66,46 +67,135 @@ def decoder_RLE(data):
     else:
         raise ValueError("Invalid data")
 
-    output = []
-    output_arr = np.empty(len(data) // 2, dtype=int)
+    output = np.empty(np.prod(shape), dtype=int)
     j = 0
     for i in range(0, len(data), 2):
-        output.extend([data[i]] * data[i + 1])
-        output_arr[j:j + data[i + 1]] = data[i]
+        output[j : j + data[i + 1]] = data[i]
         j += data[i + 1]
-        
 
-    output = np.array(output)
-    print(output.shape, output_arr.shape)
     output = np.reshape(output, shape)
-    # output_arr = np.reshape(output_arr, shape)
 
     return output
 
 
+def find_repeating_elements_sequence(arr, start):
+    counter = 1
+    for i in range(start, len(arr) - 1):
+        if arr[i] == arr[i + 1]:
+            counter += 1
+        else:
+            break
+
+    return counter
+
+
+def find_different_elements_sequence(arr, start):
+    counter = 1
+    for i in range(start, len(arr) - 1):
+        if arr[i] != arr[i + 1]:
+            counter += 1
+        else:
+            break
+
+    return counter
+
+
 def coder_ByteRun(img):
-    pass
+    shape = np.array([len(img.shape)])
+    shape = np.concatenate([shape, img.shape])
+
+    img = img.flatten()
+
+    output = np.empty(np.prod(img.shape) * 2, dtype=int)
+
+    i = 0
+    j = 0
+    while i < len(img):
+        repeating = True
+        if img[i] == img[i + 1]:
+            count = find_repeating_elements_sequence(img, i)
+        else:
+            count = find_different_elements_sequence(img, i)
+            repeating = False
+
+        if repeating:
+            output[j] = count
+            output[j + 1] = img[i]
+            j += 2
+        else:
+            output[j] = -count
+            output[j + 1 : j + 1 + count] = img[i : i + count]
+
+            j += count + 1
+
+        i += count
+
+    output = output[:j]
+    output = np.concatenate([shape, output])
+
+    return output
+
 
 def decoder_ByteRun(data):
-    pass
+    if data[0] == 2:
+        shape = data[1:3]
+        data = data[3:]
+    elif data[0] == 3:
+        shape = data[1:4]
+        data = data[4:]
+    else:
+        raise ValueError("Invalid data")
+
+    output = np.empty(np.prod(shape), dtype=int)
+
+    i = 0
+    j = 0
+    while i < len(data):
+        count = data[i]
+        repeating = count > 0
+        count = abs(count)
+
+        i += 1
+        if repeating:
+            output[j : j + count] = data[i]
+            j += count
+            i += 1
+        else:
+            output[j : j + count] = data[i : i + count]
+            j += count
+            i += count
+
+    output = np.reshape(output, shape)
+
+    return output
+            
 
 
 def main():
-    # img = cv2.imread("img/img_01.jpg")
-    # img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
     img = plt.imread("img/img_01.jpg")
     img = img.astype(int)
 
     data = coder_RLE(img)
     new_img = decoder_RLE(data)
 
+    data2 = coder_ByteRun(img)
+    new_img2 = decoder_ByteRun(data2)
+
+
     if np.array_equal(img, new_img):
         print("img equals new_img")
     else:
         print("img does not equal new_img")
 
-    # plt.imshow(new_img)
-    # plt.show()
+    if np.array_equal(img, new_img2):
+        print("img equals new_img2")
+    else:
+        print("img does not equal new_img2")
+
+
+    plt.imshow(new_img2)
+    plt.show()
 
 
 if __name__ == "__main__":
