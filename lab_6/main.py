@@ -1,6 +1,7 @@
 import numpy as np
 import sys
 import matplotlib.pyplot as plt
+from tqdm import tqdm
 
 
 def get_size(obj, seen=None):
@@ -36,7 +37,7 @@ def coder_RLE(img):
     j = 0
     count = 1
 
-    for i in range(1, len(img)):
+    for i in tqdm(range(1, len(img))):
         if img[i] == img[i - 1]:
             count += 1
         else:
@@ -69,7 +70,7 @@ def decoder_RLE(data):
 
     output = np.empty(np.prod(shape), dtype=int)
     j = 0
-    for i in range(0, len(data), 2):
+    for i in tqdm(range(0, len(data), 2)):
         output[j : j + data[i + 1]] = data[i]
         j += data[i + 1]
 
@@ -110,25 +111,27 @@ def coder_ByteRun(img):
 
     i = 0
     j = 0
-    while i < len(img):
-        repeating = True
-        if img[i] == img[i + 1]:
-            count = find_repeating_elements_sequence(img, i)
-        else:
-            count = find_different_elements_sequence(img, i)
-            repeating = False
+    with tqdm(total=len(img)) as pbar:
+        while i < len(img) - 1:
+            repeating = True
+            if img[i] == img[i + 1]:
+                count = find_repeating_elements_sequence(img, i)
+            else:
+                count = find_different_elements_sequence(img, i)
+                repeating = False
 
-        if repeating:
-            output[j] = count
-            output[j + 1] = img[i]
-            j += 2
-        else:
-            output[j] = -count
-            output[j + 1 : j + 1 + count] = img[i : i + count]
+            if repeating:
+                output[j] = count
+                output[j + 1] = img[i]
+                j += 2
+            else:
+                output[j] = -count
+                output[j + 1 : j + 1 + count] = img[i : i + count]
 
-            j += count + 1
+                j += count + 1
 
-        i += count
+            i += count
+            pbar.update(count)
 
     output = output[:j]
     output = np.concatenate([shape, output])
@@ -150,51 +153,68 @@ def decoder_ByteRun(data):
 
     i = 0
     j = 0
-    while i < len(data):
-        count = data[i]
-        repeating = count > 0
-        count = abs(count)
+    with tqdm(total=len(data)) as pbar:
+        while i < len(data):
+            i_prev = i
+            count = data[i]
+            repeating = count > 0
+            count = abs(count)
 
-        i += 1
-        if repeating:
-            output[j : j + count] = data[i]
-            j += count
             i += 1
-        else:
-            output[j : j + count] = data[i : i + count]
-            j += count
-            i += count
+            if repeating:
+                output[j : j + count] = data[i]
+                j += count
+                i += 1
+            else:
+                output[j : j + count] = data[i : i + count]
+                j += count
+                i += count
 
-    output = np.reshape(output, shape)
+            pbar.update(i - i_prev)
+
+        output = np.reshape(output, shape)
 
     return output
-            
+
+
+def imgToUInt8(image):
+
+    if image.dtype == np.uint8:
+        return image
+    elif np.issubdtype(image.dtype, np.floating):
+        return (image * 255).astype(np.uint8)
+
+    raise ValueError("Unsupported image type")
 
 
 def main():
-
-    img = plt.imread("img/img_01.jpg")
+    # sprawdzić czy ten astype(int) jest potrzebny
+    img = plt.imread("img/3.png")
+    img = imgToUInt8(img)
     img = img.astype(int)
+    print(img.dtype)
+
+    plt.imshow(img)
+    plt.show()
+    # pass
 
     data = coder_RLE(img)
     new_img = decoder_RLE(data)
 
-    data2 = coder_ByteRun(img)
-    new_img2 = decoder_ByteRun(data2)
-
+    # data2 = coder_ByteRun(img)
+    # new_img2 = decoder_ByteRun(data2)
 
     if np.array_equal(img, new_img):
         print("img equals new_img")
     else:
         print("img does not equal new_img")
 
-    if np.array_equal(img, new_img2):
-        print("img equals new_img2")
-    else:
-        print("img does not equal new_img2")
+    # if np.array_equal(img, new_img2):
+    #     print("img equals new_img2")
+    # else:
+    #     print("img does not equal new_img2")
 
-
-    plt.imshow(new_img2)
+    plt.imshow(new_img)
     plt.show()
 
 
