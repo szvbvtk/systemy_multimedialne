@@ -2,6 +2,8 @@ import numpy as np
 import sys
 import matplotlib.pyplot as plt
 from tqdm import tqdm
+import pandas as pd
+from tabulate import tabulate
 
 
 def get_size(obj, seen=None):
@@ -27,7 +29,7 @@ def get_size(obj, seen=None):
     return size
 
 
-def coder_RLE(img):
+def RLE_encode(img):
     shape = np.array([len(img.shape)])
     shape = np.concatenate([shape, img.shape])
 
@@ -37,6 +39,7 @@ def coder_RLE(img):
     j = 0
     count = 1
 
+    print("RLE encoding...")
     for i in tqdm(range(1, len(img))):
         if img[i] == img[i - 1]:
             count += 1
@@ -48,17 +51,12 @@ def coder_RLE(img):
     output[[j, j + 1]] = img[-1], count
     j += 2
     output = output[:j]
-    # print("Size of original image: ", get_size(img))
-    # print("Size of RLE image: ", get_size(output))
-    # print("Compression ratio: ", get_size(img)/get_size(output))
-    # print("Compression percentage: ", (get_size(img)-get_size(output))/get_size(img)*100)
-    # print(shape, shape.shape, output.shape, output.shape[0])
-    # print(output)
+
     output = np.concatenate([shape, output])
     return output
 
 
-def decoder_RLE(data):
+def RLE_decode(data):
     if data[0] == 2:
         shape = data[1:3]
         data = data[3:]
@@ -70,6 +68,7 @@ def decoder_RLE(data):
 
     output = np.empty(np.prod(shape), dtype=int)
     j = 0
+    print("RLE decoding...")
     for i in tqdm(range(0, len(data), 2)):
         output[j : j + data[i + 1]] = data[i]
         j += data[i + 1]
@@ -101,7 +100,7 @@ def find_different_elements_sequence(arr, start):
     return counter
 
 
-def coder_ByteRun(img):
+def ByteRun_encode(img):
     shape = np.array([len(img.shape)])
     shape = np.concatenate([shape, img.shape])
 
@@ -111,6 +110,7 @@ def coder_ByteRun(img):
 
     i = 0
     j = 0
+    print("ByteRun encoding...")
     with tqdm(total=len(img)) as pbar:
         while i < len(img) - 1:
             repeating = True
@@ -139,7 +139,7 @@ def coder_ByteRun(img):
     return output
 
 
-def decoder_ByteRun(data):
+def ByteRun_decode(data):
     if data[0] == 2:
         shape = data[1:3]
         data = data[3:]
@@ -153,6 +153,7 @@ def decoder_ByteRun(data):
 
     i = 0
     j = 0
+    print("ByteRun decoding...")
     with tqdm(total=len(data)) as pbar:
         while i < len(data):
             i_prev = i
@@ -187,35 +188,105 @@ def imgToUInt8(image):
     raise ValueError("Unsupported image type")
 
 
-def main():
-    # sprawdzić czy ten astype(int) jest potrzebny
-    img = plt.imread("img/3.png")
+def compare_images(img1, img2):
+    if img1.shape != img2.shape:
+        return False
+
+    return np.all(img1 == img2)
+
+
+def read_image(path):
+    img = plt.imread(path)
     img = imgToUInt8(img)
     img = img.astype(int)
-    print(img.dtype)
+    return img
 
-    plt.imshow(img)
-    plt.show()
-    # pass
 
-    data = coder_RLE(img)
-    new_img = decoder_RLE(data)
+def comparison_plot(images, titles, suptitle):
+    number_of_images = len(images)
+    fig, axs = plt.subplots(1, number_of_images)
+    fig.set_size_inches(12, 8)
+    fig.tight_layout()
+    fig.suptitle(suptitle)
 
-    # data2 = coder_ByteRun(img)
-    # new_img2 = decoder_ByteRun(data2)
+    for i in range(number_of_images):
+        axs[i].imshow(images[i])
+        axs[i].set_title(titles[i])
+        # axs[i].axis("off")
 
-    if np.array_equal(img, new_img):
-        print("img equals new_img")
-    else:
-        print("img does not equal new_img")
+    return fig
 
-    # if np.array_equal(img, new_img2):
-    #     print("img equals new_img2")
-    # else:
-    #     print("img does not equal new_img2")
 
-    plt.imshow(new_img)
-    plt.show()
+def CR_PR(org_size, new_size):
+    return round(org_size / new_size, 4), f"{round(new_size / org_size * 100, 2)}%"
+
+
+def main():
+    dir = "img/"
+    filenames = ("aslan.png", "document.png", "technical_drawing.png")
+
+    # CR = compression ratio, PR = compression percentage
+    lst = [
+        (
+            "filename",
+            "img size",
+            "RLE size",
+            "ByteRun size",
+            "RLE CR",
+            "ByteRun CR",
+            "RLE PR",
+            "ByteRun PR",
+            "RLE==org",
+            "ByteRun==org",
+        )
+    ]
+
+    for i, filename in enumerate(filenames):
+        img = read_image(f"{dir}{filename}")
+        filename = filename.rsplit(".", 1)[0]
+        print(f"Image {i + 1}: {filename}")
+
+        data_RLE = RLE_encode(img)
+        new_img_RLE = RLE_decode(data_RLE)
+
+        data_BR = ByteRun_encode(img)
+        new_img_BR = ByteRun_decode(data_BR)
+
+        img_size = get_size(img)
+        img_size_RLE = get_size(data_RLE)
+        img_size_BR = get_size(data_BR)
+
+        RLE_cmp = compare_images(img, new_img_RLE)
+        BR_cmp = compare_images(img, new_img_BR)
+
+        CR_RLE, PR_RLE = CR_PR(img_size, img_size_RLE)
+        CR_BR, PR_BR = CR_PR(img_size, img_size_BR)
+
+        fig = comparison_plot(
+            [img, new_img_RLE, new_img_BR],
+            ["Original", "RLE", "ByteRun"],
+            suptitle=filename,
+        )
+        fig.savefig(f"results/{filename}.png", dpi=600)
+
+        lst.append(
+            (
+                filename,
+                img_size,
+                img_size_RLE,
+                img_size_BR,
+                CR_RLE,
+                CR_BR,
+                PR_RLE,
+                PR_BR,
+                RLE_cmp,
+                BR_cmp,
+            )
+        )
+
+    table = tabulate(lst, headers="firstrow", tablefmt="pretty", showindex=False)
+    with open("results/results.txt", "w") as file:
+        file.write(table)
 
 
 if __name__ == "__main__":
