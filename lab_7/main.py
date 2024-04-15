@@ -112,6 +112,8 @@ if __name__ == "__main__":
     axs[2].plot(x, y_muLaw_decoded)
     axs[2].set_title("Mu-Law Decoded Signal")
 
+    print(np.max(y), np.min(y), np.max(y_muLaw_decoded), np.min(y_muLaw_decoded))
+
     for ax in axs.flatten():
         ax.set_xlim([0, 1])
 
