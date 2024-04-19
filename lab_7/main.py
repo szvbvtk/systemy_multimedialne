@@ -33,20 +33,6 @@ def quantize(signal, bits):
 
     return data
 
-
-# zmienic
-# def quantize(data, bit):
-#     res = data
-#     start = -1
-#     end = 1
-#     q_range = 2**bit - 1
-
-#     res = (res - start) / (end - start)
-#     res = np.round(res * q_range) / q_range
-#     res = (res * (end - start)) + start
-#     return res
-
-
 def muLaw_encode(data, mu=255):
     data = data.copy()
     data = np.sign(data) * np.log(1 + mu * np.abs(data)) / np.log(1 + mu)
@@ -62,8 +48,8 @@ def muLaw_decode(data, mu=255):
 
 
 def DPCM_predict_encode(data, bit, predictor, n):
-    y = np.empty(data.shape)
-    xp = np.empty(data.shape)
+    y = np.zeros(data.shape)
+    xp = np.zeros(data.shape)
     e = 0
 
     for i in range(1, data.shape[0]):
@@ -86,11 +72,11 @@ def DPCM_predict_decode(data, predictor, n):
     for i in range(1, data.shape[0]):
         y[i] = data[i] + e
         xp[i] = data[i] + e
-
         idx = np.arange(i - n, i, 1, dtype=int) + 1
         idx = np.delete(idx, idx < 0)
 
         e = predictor(xp[idx])
+
 
     return y
 
@@ -172,9 +158,9 @@ def main_comparison():
 
 
 def main_sing():
-    file, fs = sf.read("SING/sing_high1.wav")
+    file, fs = sf.read("SING/sing_low1.wav")
 
-    bits = 2
+    bits = 8
     n = 6
 
     filem_muLaw = MuLaw(file, bits)
@@ -191,77 +177,7 @@ def main_sing():
 
 
 if __name__ == "__main__":
-    # main_comparison()
-    main_sing()
+    main_comparison()
+    # main_sing()
 
-    # x = np.linspace(-1, 1, 1000)
-    # y = 0.9 * np.sin(np.pi * x * 4)
-
-    # y_muLaw_encoded = muLaw_encode(y)
-    # y_quantized = quantize(y_muLaw_encoded, 6)
-    # y_muLaw_decoded = muLaw_decode(y_quantized)
-
-    # fig, axs = plt.subplots(3, 1, figsize=(10, 10))
-    # axs[0].plot(x, y)
-    # axs[0].set_title("Original Signal")
-    # axs[1].plot(x, y_muLaw_encoded)
-    # axs[1].set_title("Mu-Law Encoded Signal")
-    # axs[2].plot(x, y_muLaw_decoded)
-    # axs[2].set_title("Mu-Law Decoded Signal")
-    # axs[0].plot(x, y)
-    # axs[0].set_title("Original Signal")
-    # axs[1].plot(x, y_muLaw_encoded)
-    # axs[1].set_title("Mu-Law Encoded Signal")
-    # axs[2].plot(x, y_muLaw_decoded)
-    # axs[2].set_title("Mu-Law Decoded Signal")
-
-    # print(np.max(y), np.min(y), np.max(y_muLaw_decoded), np.min(y_muLaw_decoded))
-
-    # for ax in axs.flatten():
-    #     ax.set_xlim([0, 1])
-
-    # plt.show()
-
-    # y_DPCM_encoded = DPCM_predict_encode(y, 6, predictor, 3)
-    # y_DPCM_decoded = DPCM_predict_decode(y_DPCM_encoded, predictor, 3)
-
-    # fig, axs = plt.subplots(3, 1, figsize=(10, 10))
-    # axs[0].plot(x, y)
-    # axs[0].set_title("Original Signal")
-    # axs[1].plot(x, y_DPCM_encoded)
-    # axs[1].set_title("DPCM Encoded Signal")
-    # axs[2].plot(x, y_DPCM_decoded)
-    # axs[2].set_title("DPCM Decoded Signal")
-
-    # for ax in axs.flatten():
-    #     ax.set_xlim([0, 1])
-
-    # def encode_DPCM(data, bit):
-    #     res = data.copy()
-    #     E = res[0]
-    #     for x in range(1, data.shape[0]):
-    #         diff = data[x] - E
-    #         diff = quantize(diff, 16)
-    #         res[x] = diff
-    #         E += diff
-    #     return res
-
-    # def decode_DPCM(data):
-    #     res = data.copy()
-    #     for x in range(1, data.shape[0]):
-    #         res[x] = res[x - 1] + data[x]
-    #     return res
-
-    # def DPCM_compression(data, bit):
-    #     res = encode_DPCM(data, bit)
-    #     res = decode_DPCM(res)
-    #     return res
-
-    # X = np.array([15,16,20,14,5,10,15,13,11,7,10,11,20,1,23])
-
-    # y = DPCM_predict(X, 7, predictor, 3)
-    # print(y)
-    # y = DPCM_predict_decode(y, predictor, 3)
-    # print(y)
-
-    # plt.show()
+    pass
