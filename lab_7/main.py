@@ -82,9 +82,9 @@ def DPCM_predict_decode(data, predictor, n):
 
 
 def predictor(X):
-    return np.median(X)
+    # return np.median(X)
     # return np.mean(X)
-    # return X[-1]
+    return X[-1]
 
 
 def DPCM_predict(data, bit, predictor, n):
@@ -166,8 +166,8 @@ def main_sing():
     filem_muLaw = MuLaw(file, bits)
     filem_DPCM = DPCM_predict(file, bits, predictor, n)
 
-    # sd.play(file, fs)
-    # sd.wait()
+    sd.play(file, fs)
+    sd.wait()
 
     sd.play(filem_muLaw, fs)
     sd.wait()
@@ -177,7 +177,7 @@ def main_sing():
 
 
 if __name__ == "__main__":
-    main_comparison()
-    # main_sing()
+    # main_comparison()
+    main_sing()
 
     pass
