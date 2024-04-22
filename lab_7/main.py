@@ -33,6 +33,7 @@ def quantize(signal, bits):
 
     return data
 
+
 def muLaw_encode(data, mu=255):
     data = data.copy()
     data = np.sign(data) * np.log(1 + mu * np.abs(data)) / np.log(1 + mu)
@@ -77,14 +78,13 @@ def DPCM_predict_decode(data, predictor, n):
 
         e = predictor(xp[idx])
 
-
     return y
 
 
 def predictor(X):
-    # return np.median(X)
+    return np.median(X)
     # return np.mean(X)
-    return X[-1]
+    # return X[-1]
 
 
 def DPCM_predict(data, bit, predictor, n):
