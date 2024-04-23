@@ -43,17 +43,17 @@ def RLE_encode(img):
 
 
 def RLE_decode(data):
-    # if data[0] == 2:
-    #     shape = data[1:3]
-    #     data = data[3:]
-    # elif data[0] == 3:
-    #     shape = data[1:4]
-    #     data = data[4:]
-    # else:
-    #     raise ValueError("Invalid data")
+    if data[0] == 2:
+        shape = data[1:3]
+        data = data[3:]
+    elif data[0] == 3:
+        shape = data[1:4]
+        data = data[4:]
+    else:
+        raise ValueError("Invalid data")
 
-# copilot
-    shape = data[1 : data[0] + 1]
+    # copilot
+    # shape = data[1 : data[0] + 1]
 
     output = np.empty(np.prod(shape), dtype=int)
     j = 0
@@ -67,7 +67,7 @@ def RLE_decode(data):
     return output
 
 
-# copilot
+# copilot, prawdopodobnie dobrze
 def chroma_subsampling(Cr, Cb, Ratio="4:4:4"):
     if Ratio == "4:4:4":
         return Cr, Cb
@@ -77,6 +77,7 @@ def chroma_subsampling(Cr, Cb, Ratio="4:4:4"):
         return Cr[::2, ::2], Cb[::2, ::2]
 
 
+# dobrze
 def dct2(block):
     return scipy.fftpack.dct(
         scipy.fftpack.dct(block.astype(float), axis=0, norm="ortho"),
@@ -85,6 +86,7 @@ def dct2(block):
     )
 
 
+# dobrze
 def idct2(block):
     return scipy.fftpack.idct(
         scipy.fftpack.idct(block.astype(float), axis=0, norm="ortho"),
@@ -143,6 +145,7 @@ def decompress_block(L, _Q):
     return L
 
 
+# to na pewno dobrze
 def compress_layer(L, Q):
     S = np.array([])
     for w in range(0, L.shape[0], 8):
@@ -154,9 +157,8 @@ def compress_layer(L, Q):
 
 
 def decompress_layer(S, Q):
-    # sprobowac zmienic na zeros_like czy jakos tak
-    # copilot
-    L = np.zeros((S.shape[0] * 8, 8), dtype=int)
+    # tu być może L jest złe
+    L = np.zeros((Q.shape[0] * 8, Q.shape[1] * 8))
 
     for idx, i in enumerate(range(0, S.shape[0], 64)):
         vector = S[i : (i + 64)]
@@ -203,10 +205,11 @@ def chroma_resampling(Cr, Cb, Ratio="4:4:4"):
         Cb = np.repeat(Cb, 2, axis=1)
         return Cr, Cb
     elif Ratio == "4:2:0":
-        Cr = np.repeat(Cr, 2, axis=1)
-        Cb = np.repeat(Cb, 2, axis=1)
+        # najpier wiersze potem kolumny, sprawdzic czy axis sie zgadzają
         Cr = np.repeat(Cr, 2, axis=0)
+        Cr = np.repeat(Cr, 2, axis=1)
         Cb = np.repeat(Cb, 2, axis=0)
+        Cb = np.repeat(Cb, 2, axis=1)
         return Cr, Cb
 
 
@@ -228,8 +231,8 @@ def JPEG_decompress(JPEG):
 
 
 def main():
-    img = cv2.imread("IMG/1.jpg")
-    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    img = plt.imread("IMG/1.jpg")
+    # img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
     compressed = JPEG_compress(img)
     decompressed = JPEG_decompress(compressed)
@@ -243,10 +246,6 @@ def main():
     plt.title("Decompressed")
 
     plt.show()
-
-
-
-
 
 
 if __name__ == "__main__":
