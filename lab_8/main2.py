@@ -108,16 +108,35 @@ def chromaSubsample(channel, Ratio="4:4:4"):
         return channel[:, ::2]
     else:
         raise ValueError("Invalid Chroma Subsampling Ratio")
-    
+
 
 def chromaResample(channel, Ratio="4:4:4"):
+    # sprobowac zmienic na np.repeat jesli bede mial czas, nie jest to wymagane
     if Ratio == "4:4:4":
         return channel
     elif Ratio == "4:2:2":
         rows, cols = channel.shape
         output = np.empty((rows, cols * 2))
+
+        for row in range(rows):
+            for col in range(cols):
+                output[row, [col * 2, col * 2 + 1]] = channel[row, col]
+
+        return output
     else:
         raise ValueError("Invalid Chroma Resampling Ratio")
+
+
+def CompressBlock(block, Q):
+    pass
+
+
+def CompressLayer(L, Q):
+    S = np.array([])
+    for w in range(0, L.shape[0], 8):
+        for k in range(0, L.shape[1], 8):
+            block = L[w : (w + 8), k : (k + 8)]
+            S = np.append(S, CompressBlock(block, Q))
 
 
 def compress_image(img_rgb, QY=np.ones((8, 8)), QC=np.ones((8, 8)), Ratio="4:4:4"):
@@ -132,10 +151,36 @@ def compress_image(img_rgb, QY=np.ones((8, 8)), QC=np.ones((8, 8)), Ratio="4:4:4
     JPEG.QC = QC
     JPEG.shape = img_rgb.shape
 
+    JPEG.Cr = chromaSubsample(JPEG.Cr, JPEG.ChromaRatio)
+    JPEG.Cb = chromaSubsample(JPEG.Cb, JPEG.ChromaRatio)
+
+    return JPEG
+
+
+def decompress_image(JPEG):
+
+    JPEG.Cr = chromaResample(JPEG.Cr, JPEG.ChromaRatio)
+    JPEG.Cb = chromaResample(JPEG.Cb, JPEG.ChromaRatio)
+
+    result_ycrcb = np.dstack([JPEG.Y, JPEG.Cr, JPEG.Cb]).clip(0, 255).astype(np.uint8)
+    result_rgb = cv2.cvtColor(result_ycrcb, cv2.COLOR_YCrCb2RGB)
+
+    return result_rgb
+
 
 def main():
     img = read_image("IMG/1.jpg")
-    img = img[:256, :256, :]
+    img = img[100:356, 100:356, :]
+
+    compressed = compress_image(img, QY, QC, "4:4:4")
+    decompressed = decompress_image(compressed)
+
+    print(np.array_equal(img, decompressed))
+
+    fig, axs = plt.subplots(1, 2)
+    axs[0].imshow(img)
+    axs[1].imshow(decompressed)
+    plt.show()
 
 
 if __name__ == "__main__":
