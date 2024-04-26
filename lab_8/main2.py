@@ -12,6 +12,10 @@ def read_image(path):
     return img
 
 
+def clip_image(img, row_start, row_end, col_start, col_end):
+    return img[row_start:row_end, col_start:col_end, :]
+
+
 class ver1:
     Y = np.array([])
     Cb = np.array([])
@@ -128,7 +132,11 @@ def chromaResample(channel, Ratio="4:4:4"):
 
 
 def CompressBlock(block, Q):
-    pass
+    block_dct = dct2(block)
+    block_quantized = quantize(block_dct, Q)
+    block_zigzag = zigzag(block_quantized)
+
+    return block_zigzag
 
 
 def CompressLayer(L, Q):
@@ -137,6 +145,33 @@ def CompressLayer(L, Q):
         for k in range(0, L.shape[1], 8):
             block = L[w : (w + 8), k : (k + 8)]
             S = np.append(S, CompressBlock(block, Q))
+
+    return S
+
+
+def DecompressBlock(block, Q):
+    block_izigzag = zigzag(block)
+    block_dequantized = dequantize(block_izigzag, Q)
+    block_idct = idct2(block_dequantized)
+
+    return block_idct
+
+
+def DecompressLayer(S, Q, Ratio):
+    rows = int(np.sqrt(S.shape[0]))
+    if Ratio ==  "4:2:2":
+        L = np.zeros((rows, rows * 2))
+    else:
+        L = np.zeros((rows, rows))
+
+    for idx, i in enumerate(range(0, S.shape[0], 64)):
+        vector = S[i : (i + 64)]
+        m = L.shape[0] / 8
+        k = int((idx % m) * 8)
+        w = int((idx // m) * 8)
+        L[w : (w + 8), k : (k + 8)] = DecompressBlock(vector, Q)
+
+    return L
 
 
 def compress_image(img_rgb, QY=np.ones((8, 8)), QC=np.ones((8, 8)), Ratio="4:4:4"):
@@ -154,31 +189,36 @@ def compress_image(img_rgb, QY=np.ones((8, 8)), QC=np.ones((8, 8)), Ratio="4:4:4
     JPEG.Cr = chromaSubsample(JPEG.Cr, JPEG.ChromaRatio)
     JPEG.Cb = chromaSubsample(JPEG.Cb, JPEG.ChromaRatio)
 
+    JPEG.Y = CompressLayer(JPEG.Y, JPEG.QY)
+    JPEG.Cr = CompressLayer(JPEG.Cr, JPEG.QC)
+    JPEG.Cb = CompressLayer(JPEG.Cb, JPEG.QC)
+
     return JPEG
 
 
 def decompress_image(JPEG):
+    Y = DecompressLayer(JPEG.Y, JPEG.QY, JPEG.ChromaRatio)
+    Cr = DecompressLayer(JPEG.Cr, JPEG.QC, JPEG.ChromaRatio)
+    Cb = DecompressLayer(JPEG.Cb, JPEG.QC, JPEG.ChromaRatio)
 
-    JPEG.Cr = chromaResample(JPEG.Cr, JPEG.ChromaRatio)
-    JPEG.Cb = chromaResample(JPEG.Cb, JPEG.ChromaRatio)
+    Cr = chromaResample(Cr, JPEG.ChromaRatio)
+    Cb = chromaResample(Cb, JPEG.ChromaRatio)
 
-    result_ycrcb = np.dstack([JPEG.Y, JPEG.Cr, JPEG.Cb]).clip(0, 255).astype(np.uint8)
-    result_rgb = cv2.cvtColor(result_ycrcb, cv2.COLOR_YCrCb2RGB)
+    decompressed_ycrcb = np.dstack([Y, Cr, Cb]).clip(0, 255).astype(np.uint8)
+    decompressed_rgb = cv2.cvtColor(decompressed_ycrcb, cv2.COLOR_YCrCb2RGB)
 
-    return result_rgb
+    return decompressed_rgb
 
 
 def main():
     img = read_image("IMG/1.jpg")
-    img = img[100:356, 100:356, :]
+    img_clipped = clip_image(img, 100, 356, 100, 356)
 
-    compressed = compress_image(img, QY, QC, "4:4:4")
+    compressed = compress_image(img_clipped, QY, QC, "4:2:2")
     decompressed = decompress_image(compressed)
 
-    print(np.array_equal(img, decompressed))
-
     fig, axs = plt.subplots(1, 2)
-    axs[0].imshow(img)
+    axs[0].imshow(img_clipped)
     axs[1].imshow(decompressed)
     plt.show()
 
