@@ -158,11 +158,15 @@ def DecompressBlock(block, Q):
 
 
 def DecompressLayer(S, Q, Ratio):
-    rows = int(np.sqrt(S.shape[0]))
-    if Ratio ==  "4:2:2":
-        L = np.zeros((rows, rows * 2))
+    print(S.shape)
+    if Ratio == "4:2:2":
+        rows = int(np.sqrt(S.shape[0]) / 2) * 2
+        cols = S.shape[0] // rows
+
+        L = np.zeros((rows, cols))
     else:
-        L = np.zeros((rows, rows))
+        rows, cols = np.repeat(int(np.sqrt(S.shape[0])), 2)
+        L = np.zeros((rows, cols))
 
     for idx, i in enumerate(range(0, S.shape[0], 64)):
         vector = S[i : (i + 64)]
@@ -212,9 +216,9 @@ def decompress_image(JPEG):
 
 def main():
     img = read_image("IMG/1.jpg")
-    img_clipped = clip_image(img, 100, 356, 100, 356)
+    img_clipped = clip_image(img, 100, 356, 108, 364)
 
-    compressed = compress_image(img_clipped, QY, QC, "4:2:2")
+    compressed = compress_image(img_clipped, QY, QC, "4:4:4")
     decompressed = decompress_image(compressed)
 
     fig, axs = plt.subplots(1, 2)
