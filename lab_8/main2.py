@@ -57,18 +57,18 @@ QN = np.ones((8, 8))
 
 def dct2(block):
     return scipy.fftpack.dct(
-        scipy.fftpack.dct(block.astype(float), axis=0, norm="ortho"),
+        scipy.fftpack.dct(block.astype(float) - 128, axis=0, norm="ortho"),
         axis=1,
         norm="ortho",
     )
 
 
 def idct2(block):
-    return scipy.fftpack.idct(
+    return (scipy.fftpack.idct(
         scipy.fftpack.idct(block.astype(float), axis=0, norm="ortho"),
         axis=1,
         norm="ortho",
-    )
+    ) + 128)
 
 
 def quantize(block, Q):
@@ -110,25 +110,16 @@ def chromaSubsample(channel, Ratio="4:4:4"):
         return channel
     elif Ratio == "4:2:2":
         return channel[:, ::2]
-    else:
-        raise ValueError("Invalid Chroma Subsampling Ratio")
 
 
 def chromaResample(channel, Ratio="4:4:4"):
-    # sprobowac zmienic na np.repeat jesli bede mial czas, nie jest to wymagane
     if Ratio == "4:4:4":
         return channel
     elif Ratio == "4:2:2":
-        rows, cols = channel.shape
-        output = np.empty((rows, cols * 2))
+        return np.repeat(channel, 2, axis=1)
 
-        for row in range(rows):
-            for col in range(cols):
-                output[row, [col * 2, col * 2 + 1]] = channel[row, col]
 
-        return output
-    else:
-        raise ValueError("Invalid Chroma Resampling Ratio")
+
 
 
 def CompressBlock(block, Q):
@@ -157,23 +148,16 @@ def DecompressBlock(block, Q):
     return block_idct
 
 
-def DecompressLayer(S, Q, Ratio):
-    print(S.shape)
-    if Ratio == "4:2:2":
-        rows = int(np.sqrt(S.shape[0]) / 2) * 2
-        cols = S.shape[0] // rows
+def DecompressLayer(S, Q, Ratio, shape):
+    L = np.zeros((shape[0], shape[1]))
 
-        L = np.zeros((rows, cols))
-    else:
-        rows, cols = np.repeat(int(np.sqrt(S.shape[0])), 2)
-        L = np.zeros((rows, cols))
-
-    for idx, i in enumerate(range(0, S.shape[0], 64)):
-        vector = S[i : (i + 64)]
-        m = L.shape[0] / 8
-        k = int((idx % m) * 8)
-        w = int((idx // m) * 8)
-        L[w : (w + 8), k : (k + 8)] = DecompressBlock(vector, Q)
+    i = 0
+    for w in range(0, L.shape[0], 8):
+        for k in range(0, L.shape[1], 8):
+            vector = S[i : i + 64]
+            L[w : (w + 8), k : (k + 8)] = DecompressBlock(vector, Q)
+            i += 64
+    
 
     return L
 
@@ -197,28 +181,42 @@ def compress_image(img_rgb, QY=np.ones((8, 8)), QC=np.ones((8, 8)), Ratio="4:4:4
     JPEG.Cr = CompressLayer(JPEG.Cr, JPEG.QC)
     JPEG.Cb = CompressLayer(JPEG.Cb, JPEG.QC)
 
+
     return JPEG
 
 
+
 def decompress_image(JPEG):
-    Y = DecompressLayer(JPEG.Y, JPEG.QY, JPEG.ChromaRatio)
-    Cr = DecompressLayer(JPEG.Cr, JPEG.QC, JPEG.ChromaRatio)
-    Cb = DecompressLayer(JPEG.Cb, JPEG.QC, JPEG.ChromaRatio)
+    Y = DecompressLayer(JPEG.Y, JPEG.QY, JPEG.ChromaRatio, JPEG.shape)
+    
+    if JPEG.ChromaRatio == "4:2:2":
+        shape = (JPEG.shape[0], JPEG.shape[1] // 2)
+
+    Cr = DecompressLayer(JPEG.Cr, JPEG.QC, JPEG.ChromaRatio, shape)
+    Cb = DecompressLayer(JPEG.Cb, JPEG.QC, JPEG.ChromaRatio, shape)
 
     Cr = chromaResample(Cr, JPEG.ChromaRatio)
     Cb = chromaResample(Cb, JPEG.ChromaRatio)
 
+
     decompressed_ycrcb = np.dstack([Y, Cr, Cb]).clip(0, 255).astype(np.uint8)
     decompressed_rgb = cv2.cvtColor(decompressed_ycrcb, cv2.COLOR_YCrCb2RGB)
 
+    print(np.array_equal(decompressed_rgb, decompressed_ycrcb))
+
+    # return decompressed_ycrcb
     return decompressed_rgb
+
+
+
 
 
 def main():
     img = read_image("IMG/1.jpg")
-    img_clipped = clip_image(img, 100, 356, 108, 364)
+    img_clipped = clip_image(img, 100, 356, 200, 456)
 
-    compressed = compress_image(img_clipped, QY, QC, "4:4:4")
+    ratio = "4:2:2"
+    compressed = compress_image(img_clipped, QY, QC, ratio)
     decompressed = decompress_image(compressed)
 
     fig, axs = plt.subplots(1, 2)
