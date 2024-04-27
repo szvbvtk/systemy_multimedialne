@@ -1,8 +1,58 @@
 import matplotlib.pyplot as plt
-from tqdm import tqdm
 import scipy.fftpack
 import numpy as np
 import cv2
+
+
+def RLE_encode(img):
+    shape = np.array([len(img.shape)])
+    shape = np.concatenate([shape, img.shape])
+
+    img = img.flatten()
+
+    output = np.empty(np.prod(img.shape) * 2, dtype=int)
+    j = 0
+    count = 1
+
+    for i in range(1, len(img)):
+        if img[i] == img[i - 1]:
+            count += 1
+        else:
+            output[[j, j + 1]] = img[i - 1], count
+            j += 2
+            count = 1
+
+    output[[j, j + 1]] = img[-1], count
+    j += 2
+    output = output[:j]
+
+    output = np.concatenate([shape, output])
+    return output
+
+
+def RLE_decode(data):
+    if data[0] == 2:
+        shape = data[1:3]
+        data = data[3:]
+    elif data[0] == 3:
+        shape = data[1:4]
+        data = data[4:]
+    elif data[0] == 1:
+        shape = data[1:2]
+        data = data[2:]
+    else:
+        raise ValueError("Invalid data")
+
+    output = np.empty(np.prod(shape), dtype=int)
+    j = 0
+
+    for i in range(0, len(data), 2):
+        output[j : j + data[i + 1]] = data[i]
+        j += data[i + 1]
+
+    output = np.reshape(output, shape)
+
+    return output
 
 
 def read_image(path):
@@ -64,11 +114,14 @@ def dct2(block):
 
 
 def idct2(block):
-    return (scipy.fftpack.idct(
-        scipy.fftpack.idct(block.astype(float), axis=0, norm="ortho"),
-        axis=1,
-        norm="ortho",
-    ) + 128)
+    return (
+        scipy.fftpack.idct(
+            scipy.fftpack.idct(block.astype(float), axis=0, norm="ortho"),
+            axis=1,
+            norm="ortho",
+        )
+        + 128
+    )
 
 
 def quantize(block, Q):
@@ -119,9 +172,6 @@ def chromaResample(channel, Ratio="4:4:4"):
         return np.repeat(channel, 2, axis=1)
 
 
-
-
-
 def CompressBlock(block, Q):
     block_dct = dct2(block)
     block_quantized = quantize(block_dct, Q)
@@ -137,7 +187,9 @@ def CompressLayer(L, Q):
             block = L[w : (w + 8), k : (k + 8)]
             S = np.append(S, CompressBlock(block, Q))
 
-    return S
+    S_RLE = RLE_encode(S)
+
+    return S_RLE
 
 
 def DecompressBlock(block, Q):
@@ -148,8 +200,10 @@ def DecompressBlock(block, Q):
     return block_idct
 
 
-def DecompressLayer(S, Q, Ratio, shape):
+def DecompressLayer(S_RLE, Q, Ratio, shape):
     L = np.zeros((shape[0], shape[1]))
+
+    S = RLE_decode(S_RLE)
 
     i = 0
     for w in range(0, L.shape[0], 8):
@@ -157,7 +211,6 @@ def DecompressLayer(S, Q, Ratio, shape):
             vector = S[i : i + 64]
             L[w : (w + 8), k : (k + 8)] = DecompressBlock(vector, Q)
             i += 64
-    
 
     return L
 
@@ -181,16 +234,16 @@ def compress_image(img_rgb, QY=np.ones((8, 8)), QC=np.ones((8, 8)), Ratio="4:4:4
     JPEG.Cr = CompressLayer(JPEG.Cr, JPEG.QC)
     JPEG.Cb = CompressLayer(JPEG.Cb, JPEG.QC)
 
-
     return JPEG
-
 
 
 def decompress_image(JPEG):
     Y = DecompressLayer(JPEG.Y, JPEG.QY, JPEG.ChromaRatio, JPEG.shape)
-    
+
     if JPEG.ChromaRatio == "4:2:2":
         shape = (JPEG.shape[0], JPEG.shape[1] // 2)
+    else:
+        shape = JPEG.shape
 
     Cr = DecompressLayer(JPEG.Cr, JPEG.QC, JPEG.ChromaRatio, shape)
     Cb = DecompressLayer(JPEG.Cb, JPEG.QC, JPEG.ChromaRatio, shape)
@@ -198,32 +251,89 @@ def decompress_image(JPEG):
     Cr = chromaResample(Cr, JPEG.ChromaRatio)
     Cb = chromaResample(Cb, JPEG.ChromaRatio)
 
-
     decompressed_ycrcb = np.dstack([Y, Cr, Cb]).clip(0, 255).astype(np.uint8)
     decompressed_rgb = cv2.cvtColor(decompressed_ycrcb, cv2.COLOR_YCrCb2RGB)
 
-    print(np.array_equal(decompressed_rgb, decompressed_ycrcb))
-
-    # return decompressed_ycrcb
     return decompressed_rgb
 
 
+def generate_plot(PRZED_RGB, PO_RGB, suptitle=""):
+    fig, axs = plt.subplots(4, 2, sharey=True)
+    fig.suptitle(suptitle)
+    fig.set_size_inches(9, 13)
+    fig.tight_layout()
 
+    for ax in axs.flat:
+        ax.axis("off")
+
+    axs[0, 0].set_title("PRZED")
+    axs[0, 0].imshow(PRZED_RGB)
+    PRZED_YCrCb = cv2.cvtColor(PRZED_RGB, cv2.COLOR_RGB2YCrCb)
+    axs[1, 0].imshow(PRZED_YCrCb[:, :, 0], cmap=plt.cm.gray)
+    axs[1, 0].set_title("Y")
+    axs[2, 0].imshow(PRZED_YCrCb[:, :, 1], cmap=plt.cm.gray)
+    axs[2, 0].set_title("Cr")
+    axs[3, 0].imshow(PRZED_YCrCb[:, :, 2], cmap=plt.cm.gray)
+    axs[3, 0].set_title("Cb")
+
+    axs[0, 1].set_title("PO")
+    axs[0, 1].imshow(PO_RGB)
+    PO_YCrCb = cv2.cvtColor(PO_RGB, cv2.COLOR_RGB2YCrCb)
+    axs[1, 1].imshow(PO_YCrCb[:, :, 0], cmap=plt.cm.gray)
+    axs[1, 1].set_title("Y")
+    axs[2, 1].imshow(PO_YCrCb[:, :, 1], cmap=plt.cm.gray)
+    axs[2, 1].set_title("Cr")
+    axs[3, 1].imshow(PO_YCrCb[:, :, 2], cmap=plt.cm.gray)
+    axs[3, 1].set_title("Cb")
+
+    return fig
+
+
+def test():
+    img = read_image("IMG/4.jpg")
+    img = clip_image(img, 500, 628, 400, 528)
+
+    plt.imshow(img)
+    plt.axis("off")
+    plt.show()
 
 
 def main():
-    img = read_image("IMG/1.jpg")
-    img_clipped = clip_image(img, 100, 356, 200, 456)
+    img_name = "4"
+    img = read_image(f"IMG/{img_name}.jpg")
 
-    ratio = "4:2:2"
-    compressed = compress_image(img_clipped, QY, QC, ratio)
-    decompressed = decompress_image(compressed)
+    TITLES = ["4:4:4 QY, QC", "4:4:4 QN", "4:2:2 QY, QC", "4:2:2 QN"]
 
-    fig, axs = plt.subplots(1, 2)
-    axs[0].imshow(img_clipped)
-    axs[1].imshow(decompressed)
-    plt.show()
+    fragments = [
+        [0, 128, 0, 128],
+        [286, 414, 256, 384],
+        [400, 528, 350, 478],
+        [500, 628, 400, 528]
+    ]
+
+    for i, fragment in enumerate(fragments):
+        img_c = clip_image(img, *fragment)
+
+        compressed1 = compress_image(img_c, QY, QC, "4:4:4")
+        decompressed1 = decompress_image(compressed1)
+
+        compressed2 = compress_image(img_c, QN, QN, "4:4:4")
+        decompressed2 = decompress_image(compressed2)
+
+        compressed3 = compress_image(img_c, QY, QC, "4:2:2")
+        decompressed3 = decompress_image(compressed3)
+
+        compressed4 = compress_image(img_c, QN, QN, "4:2:2")
+        decompressed4 = decompress_image(compressed4)
+
+        decompressed = [decompressed1, decompressed2, decompressed3, decompressed4]
+
+        for j, d in enumerate(decompressed):
+            title = TITLES[j]
+            fig = generate_plot(img_c, d, title)
+            fig.savefig(f"OUTPUT/{img_name}_{j+1}_fragment_{i+1}.png")
 
 
 if __name__ == "__main__":
     main()
+    # test()
