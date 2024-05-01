@@ -12,7 +12,7 @@ ile = 100  # ile klatek odtworzyć? <0 - całość
 key_frame_counter = 4  # co która klatka ma być kluczowa i nie podlegać kompresji
 plot_frames = np.array([30, 45])  # automatycznie wyrysuj wykresy
 auto_pause_frames = np.array([25])  # automatycznie za pauzuj dla klatki
-subsampling = "4:4:4"  # parametry dla chroma subsampling
+subsampling = "4:1:1"  # parametry dla chroma subsampling
 dzielnik = 1  # dzielnik przy zapisie różnicy
 wyswietlaj_kaltki = True  # czy program ma wyświetlać klatki
 ROI = [[0, 100, 0, 100]]  # wyświetlane fragmenty (można podać kilka )
@@ -57,7 +57,9 @@ def Chroma_resampling(L, subsampling):
     elif subsampling == "4:1:1":
         return np.repeat(L, 4, axis=1)
     elif subsampling == "4:1:0":
-        return np.repeat(np.repeat(L, 2, axis=0), 4, axis=1)
+        return np.repeat(
+            np.repeat(L, 2, axis=0), 4, axis=1
+        )  # byc moze trzeba na odwrot
     else:
         raise ValueError("Invalid subsampling parameter")
 
@@ -78,7 +80,9 @@ def frame_layers_to_image(Y, Cr, Cb, subsampling):
 
 def compress_KeyFrame(Frame_class):
     KeyFrame = data()
+
     ## TO DO
+
     KeyFrame.Y = Frame_class.Y
     KeyFrame.Cb = Frame_class.Cb
     KeyFrame.Cr = Frame_class.Cr
@@ -96,18 +100,20 @@ def decompress_KeyFrame(KeyFrame):
 
 def compress_not_KeyFrame(Frame_class, KeyFrame, inne_paramerty_do_dopisania=None):
     Compress_data = data()
-    ## TO DO
-    Compress_data.Y = Frame_class.Y
-    Compress_data.Cb = Frame_class.Cb
-    Compress_data.Cr = Frame_class.Cr
+
+    # byc moze to rnum do dopisania + dodać rle
+    Compress_data.Y = Frame_class.Y - KeyFrame.Y
+    Compress_data.Cb = Frame_class.Cb - KeyFrame.Cb
+    Compress_data.Cr = Frame_class.Cr - KeyFrame.Cr
+
     return Compress_data
 
 
 def decompress_not_KeyFrame(Compress_data, KeyFrame, inne_paramerty_do_dopisania=None):
-    Y = Compress_data.Y
-    Cb = Compress_data.Cb
-    Cr = Compress_data.Cr
-    ## TO DO
+    # byc moze to rnum do dopisania (repo) + dodać rle
+    Y = Compress_data.Y + KeyFrame.Y
+    Cb = Compress_data.Cb + KeyFrame.Cb
+    Cr = Compress_data.Cr + KeyFrame.Cr
     return frame_layers_to_image(Y, Cr, Cb, subsampling)
 
 
@@ -118,19 +124,40 @@ def plotDiffrence(ReferenceFrame, DecompressedFrame, ROI):
     fig, axs = plt.subplots(1, 3, sharey=True)
     fig.set_size_inches(16, 5)
 
+    ReferenceFrame = cv2.cvtColor(ReferenceFrame, cv2.COLOR_YCrCb2RGB)
+    DecompressedFrame = cv2.cvtColor(DecompressedFrame, cv2.COLOR_YCrCb2RGB)
+
     axs[0].imshow(ReferenceFrame[ROI[0] : ROI[1], ROI[2] : ROI[3]])
     axs[2].imshow(DecompressedFrame[ROI[0] : ROI[1], ROI[2] : ROI[3]])
-    diff = ReferenceFrame[ROI[0] : ROI[1], ROI[2] : ROI[3]].astype(
+
+    diff_R = ReferenceFrame[ROI[0] : ROI[1], ROI[2] : ROI[3], 0].astype(
         float
-    ) - DecompressedFrame[ROI[0] : ROI[1], ROI[2] : ROI[3]].astype(float)
-    print(np.min(diff), np.max(diff))
-    axs[1].imshow(diff, vmin=np.min(diff), vmax=np.max(diff))
+    ) - DecompressedFrame[ROI[0] : ROI[1], ROI[2] : ROI[3], 0].astype(float)
+
+    diff_G = ReferenceFrame[ROI[0] : ROI[1], ROI[2] : ROI[3], 1].astype(
+        float
+    ) - DecompressedFrame[ROI[0] : ROI[1], ROI[2] : ROI[3], 1].astype(float)
+
+    diff_B = ReferenceFrame[ROI[0] : ROI[1], ROI[2] : ROI[3], 2].astype(
+        float
+    ) - DecompressedFrame[ROI[0] : ROI[1], ROI[2] : ROI[3], 2].astype(float)
+
+    # Normalize the difference values albo dac .clip(0,255).astype(np.uint8), nie wiem, okaze sie na koncu
+    diff_R = (diff_R - np.min(diff_R)) / (np.max(diff_R) - np.min(diff_R))
+    diff_G = (diff_G - np.min(diff_G)) / (np.max(diff_G) - np.min(diff_G))
+    diff_B = (diff_B - np.min(diff_B)) / (np.max(diff_B) - np.min(diff_B))
+
+    diff_RGB = np.dstack([diff_R, diff_G, diff_B])
+
+    print(f"min diff: {np.min(diff_RGB)} max diff: {np.max(diff_RGB)}")
+
+    axs[1].imshow(diff_RGB)
 
 
 ##############################################################################
 ####     Głowna pętla programu      ##########################################
 ##############################################################################
-
+# def main():
 cap = cv2.VideoCapture(kat + "\\" + plik)
 
 if ile < 0:
@@ -197,3 +224,7 @@ plt.title(
         plik, subsampling, dzielnik, key_frame_counter
     )
 )
+
+
+# if __name__ == "__main__":
+#     main()
