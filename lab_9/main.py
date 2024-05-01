@@ -14,13 +14,69 @@ plot_frames = np.array([30, 45])  # automatycznie wyrysuj wykresy
 auto_pause_frames = np.array([25])  # automatycznie za pauzuj dla klatki
 subsampling = "4:1:1"  # parametry dla chroma subsampling
 dzielnik = 1  # dzielnik przy zapisie różnicy
-wyswietlaj_kaltki = True  # czy program ma wyświetlać klatki
+wyswietlaj_klatki = True  # czy program ma wyświetlać klatki
 ROI = [[0, 100, 0, 100]]  # wyświetlane fragmenty (można podać kilka )
 
 
 ##############################################################################
 ####     Kompresja i dekompresja    ##########################################
 ##############################################################################
+
+
+
+
+
+def RLE_encode(img):
+    shape = np.array([len(img.shape)])
+    shape = np.concatenate([shape, img.shape])
+
+    img = img.flatten()
+
+    output = np.empty(np.prod(img.shape) * 2, dtype=int)
+    j = 0
+    count = 1
+
+    for i in range(1, len(img)):
+        if img[i] == img[i - 1]:
+            count += 1
+        else:
+            output[[j, j + 1]] = img[i - 1], count
+            j += 2
+            count = 1
+
+    output[[j, j + 1]] = img[-1], count
+    j += 2
+    output = output[:j]
+
+    output = np.concatenate([shape, output])
+    return output
+
+
+def RLE_decode(data):
+    if data[0] == 2:
+        shape = data[1:3]
+        data = data[3:]
+    elif data[0] == 3:
+        shape = data[1:4]
+        data = data[4:]
+    elif data[0] == 1:
+        shape = data[1:2]
+        data = data[2:]
+    else:
+        raise ValueError("Invalid data")
+
+    output = np.empty(np.prod(shape), dtype=int)
+    j = 0
+
+    for i in range(0, len(data), 2):
+        output[j : j + data[i + 1]] = data[i]
+        j += data[i + 1]
+
+    output = np.reshape(output, shape)
+
+    return output
+
+
 class data:
     def init(self):
         self.Y = None
@@ -81,19 +137,29 @@ def frame_layers_to_image(Y, Cr, Cb, subsampling):
 def compress_KeyFrame(Frame_class):
     KeyFrame = data()
 
-    ## TO DO
-
     KeyFrame.Y = Frame_class.Y
     KeyFrame.Cb = Frame_class.Cb
     KeyFrame.Cr = Frame_class.Cr
+
+    # potem mozna polaczyc te dwa bloki w jeden, teraz tylko dla testow
+    KeyFrame.Y = RLE_encode(Frame_class.Y)
+    KeyFrame.Cb = RLE_encode(Frame_class.Cb)
+    KeyFrame.Cr = RLE_encode(Frame_class.Cr)
+
     return KeyFrame
 
 
 def decompress_KeyFrame(KeyFrame):
+    # tutaj tak samo jak w compress_KeyFrame, mozna polaczyc te dwa bloki w jeden, teraz tylko dla testow,
+    # wszedzie na koncu do polaczenia
     Y = KeyFrame.Y
     Cb = KeyFrame.Cb
     Cr = KeyFrame.Cr
-    ## TO DO
+
+    Y = RLE_decode(KeyFrame.Y)
+    Cb = RLE_decode(KeyFrame.Cb)
+    Cr = RLE_decode(KeyFrame.Cr)
+
     frame_image = frame_layers_to_image(Y, Cr, Cb, subsampling)
     return frame_image
 
@@ -101,7 +167,7 @@ def decompress_KeyFrame(KeyFrame):
 def compress_not_KeyFrame(Frame_class, KeyFrame, inne_paramerty_do_dopisania=None):
     Compress_data = data()
 
-    # byc moze to rnum do dopisania + dodać rle
+    # brak RLE
     Compress_data.Y = Frame_class.Y - KeyFrame.Y
     Compress_data.Cb = Frame_class.Cb - KeyFrame.Cb
     Compress_data.Cr = Frame_class.Cr - KeyFrame.Cr
@@ -110,10 +176,13 @@ def compress_not_KeyFrame(Frame_class, KeyFrame, inne_paramerty_do_dopisania=Non
 
 
 def decompress_not_KeyFrame(Compress_data, KeyFrame, inne_paramerty_do_dopisania=None):
-    # byc moze to rnum do dopisania (repo) + dodać rle
+
+    # brak rle
     Y = Compress_data.Y + KeyFrame.Y
     Cb = Compress_data.Cb + KeyFrame.Cb
     Cr = Compress_data.Cr + KeyFrame.Cr
+    # byc moze to rnum do dopisania (repo)
+
     return frame_layers_to_image(Y, Cr, Cb, subsampling)
 
 
@@ -170,7 +239,7 @@ compression_information = np.zeros((3, ile))
 
 for i in range(ile):
     ret, frame = cap.read()
-    if wyswietlaj_kaltki:
+    if wyswietlaj_klatki:
         cv2.imshow("Normal Frame", frame)
     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2YCrCb)
     Frame_class = frame_image_to_class(frame, subsampling)
@@ -196,7 +265,7 @@ for i in range(ile):
     compression_information[2, i] = (frame[:, :, 0].size - cCr.size) / frame[
         :, :, 0
     ].size
-    if wyswietlaj_kaltki:
+    if wyswietlaj_klatki:
         cv2.imshow(
             "Decompressed Frame", cv2.cvtColor(Decompresed_Frame, cv2.COLOR_YCrCb2BGR)
         )
