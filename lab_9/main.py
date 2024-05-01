@@ -29,13 +29,37 @@ class data:
 
 
 def Chroma_subsampling(L, subsampling):
-    # uzupełnić
-    return L
+    if subsampling == "4:4:4":
+        return L
+    elif subsampling == "4:2:2":
+        return L[:, ::2]
+    elif subsampling == "4:4:0":
+        return L[::2, :]
+    elif subsampling == "4:2:0":
+        return L[::2, ::2]
+    elif subsampling == "4:1:1":
+        return L[:, ::4]
+    elif subsampling == "4:1:0":
+        return L[::2, ::4]
+    else:
+        raise ValueError("Invalid subsampling parameter")
 
 
 def Chroma_resampling(L, subsampling):
-    # uzupełnić
-    return L
+    if subsampling == "4:4:4":
+        return L
+    elif subsampling == "4:2:2":
+        return np.repeat(L, 2, axis=1)
+    elif subsampling == "4:4:0":
+        return np.repeat(L, 2, axis=0)
+    elif subsampling == "4:2:0":
+        return np.repeat(np.repeat(L, 2, axis=0), 2, axis=1)
+    elif subsampling == "4:1:1":
+        return np.repeat(L, 4, axis=1)
+    elif subsampling == "4:1:0":
+        return np.repeat(np.repeat(L, 2, axis=0), 4, axis=1)
+    else:
+        raise ValueError("Invalid subsampling parameter")
 
 
 def frame_image_to_class(frame, subsampling):
