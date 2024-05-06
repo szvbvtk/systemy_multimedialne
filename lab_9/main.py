@@ -7,13 +7,13 @@ import matplotlib.pyplot as plt
 ##############################################################################
 
 kat = "./VIDEOS"  # katalog z plikami wideo
-plik = "clip_1.mp4"  # nazwa pliku
+plik = "clip_4.mp4"  # nazwa pliku
 ile = 100  # ile klatek odtworzyć? <0 - całość
 key_frame_counter = 4  # co która klatka ma być kluczowa i nie podlegać kompresji
 plot_frames = np.array([30, 45])  # automatycznie wyrysuj wykresy
 auto_pause_frames = np.array([25])  # automatycznie za pauzuj dla klatki
-subsampling = "4:1:1"  # parametry dla chroma subsampling
-dzielnik = 1  # dzielnik przy zapisie różnicy
+subsampling = "4:2:2"  # parametry dla chroma subsampling
+dzielnik = 0.25  # dzielnik przy zapisie różnicy
 wyswietlaj_klatki = True  # czy program ma wyświetlać klatki
 ROI = [[0, 100, 0, 100]]  # wyświetlane fragmenty (można podać kilka )
 
@@ -21,9 +21,6 @@ ROI = [[0, 100, 0, 100]]  # wyświetlane fragmenty (można podać kilka )
 ##############################################################################
 ####     Kompresja i dekompresja    ##########################################
 ##############################################################################
-
-
-
 
 
 def RLE_encode(img):
@@ -141,46 +138,39 @@ def compress_KeyFrame(Frame_class):
     KeyFrame.Cb = Frame_class.Cb
     KeyFrame.Cr = Frame_class.Cr
 
-    # potem mozna polaczyc te dwa bloki w jeden, teraz tylko dla testow
-    KeyFrame.Y = RLE_encode(Frame_class.Y)
-    KeyFrame.Cb = RLE_encode(Frame_class.Cb)
-    KeyFrame.Cr = RLE_encode(Frame_class.Cr)
-
     return KeyFrame
 
 
 def decompress_KeyFrame(KeyFrame):
-    # tutaj tak samo jak w compress_KeyFrame, mozna polaczyc te dwa bloki w jeden, teraz tylko dla testow,
-    # wszedzie na koncu do polaczenia
     Y = KeyFrame.Y
     Cb = KeyFrame.Cb
     Cr = KeyFrame.Cr
-
-    Y = RLE_decode(KeyFrame.Y)
-    Cb = RLE_decode(KeyFrame.Cb)
-    Cr = RLE_decode(KeyFrame.Cr)
 
     frame_image = frame_layers_to_image(Y, Cr, Cb, subsampling)
     return frame_image
 
 
-def compress_not_KeyFrame(Frame_class, KeyFrame, inne_paramerty_do_dopisania=None):
+def compress_not_KeyFrame(
+    Frame_class, KeyFrame, dzielnik, inne_paramerty_do_dopisania=None
+):
     Compress_data = data()
 
-    # brak RLE
-    Compress_data.Y = Frame_class.Y - KeyFrame.Y
-    Compress_data.Cb = Frame_class.Cb - KeyFrame.Cb
-    Compress_data.Cr = Frame_class.Cr - KeyFrame.Cr
+    # print(Frame_class.Y.dtype, KeyFrame.Y.dtype)
+    Compress_data.Y = ((Frame_class.Y - KeyFrame.Y) * dzielnik).astype(np.int32)
+    Compress_data.Cb = ((Frame_class.Cb - KeyFrame.Cb) * dzielnik).astype(np.int32)
+    Compress_data.Cr = ((Frame_class.Cr - KeyFrame.Cr) * dzielnik).astype(np.int32)
+    # print(Compress_data.Y.dtype, Compress_data.Cb.dtype, Compress_data.Cr.dtype)
 
     return Compress_data
 
 
-def decompress_not_KeyFrame(Compress_data, KeyFrame, inne_paramerty_do_dopisania=None):
+def decompress_not_KeyFrame(
+    Compress_data, KeyFrame, dzielnik, inne_paramerty_do_dopisania=None
+):
 
-    # brak rle
-    Y = Compress_data.Y + KeyFrame.Y
-    Cb = Compress_data.Cb + KeyFrame.Cb
-    Cr = Compress_data.Cr + KeyFrame.Cr
+    Y = (Compress_data.Y / dzielnik) + KeyFrame.Y
+    Cb = (Compress_data.Cb / dzielnik) + KeyFrame.Cb
+    Cr = (Compress_data.Cr / dzielnik) + KeyFrame.Cr
     # byc moze to rnum do dopisania (repo)
 
     return frame_layers_to_image(Y, Cr, Cb, subsampling)
@@ -212,15 +202,45 @@ def plotDiffrence(ReferenceFrame, DecompressedFrame, ROI):
     ) - DecompressedFrame[ROI[0] : ROI[1], ROI[2] : ROI[3], 2].astype(float)
 
     # Normalize the difference values albo dac .clip(0,255).astype(np.uint8), nie wiem, okaze sie na koncu
-    diff_R = (diff_R - np.min(diff_R)) / (np.max(diff_R) - np.min(diff_R))
-    diff_G = (diff_G - np.min(diff_G)) / (np.max(diff_G) - np.min(diff_G))
-    diff_B = (diff_B - np.min(diff_B)) / (np.max(diff_B) - np.min(diff_B))
+    # diff_R = (diff_R - np.min(diff_R)) / (np.max(diff_R) - np.min(diff_R))
+    # diff_G = (diff_G - np.min(diff_G)) / (np.max(diff_G) - np.min(diff_G))
+    # diff_B = (diff_B - np.min(diff_B)) / (np.max(diff_B) - np.min(diff_B))
+
+    # diff_R = diff_R.clip(0, 255).astype(np.uint8)
+    # diff_G = diff_G.clip(0, 255).astype(np.uint8)
+    # diff_B = diff_B.clip(0, 255).astype(np.uint8)
+    print(diff_R[:5, :5])
 
     diff_RGB = np.dstack([diff_R, diff_G, diff_B])
 
     print(f"min diff: {np.min(diff_RGB)} max diff: {np.max(diff_RGB)}")
 
     axs[1].imshow(diff_RGB)
+
+
+def plotDiffrence(ReferenceFrame, DecompressedFrame, ROI):
+    # bardzo słaby i sztuczny przykład wykorzystania tej opcji
+    # przerobić żeby porównanie było dokonywane w RGB nie YCrCb i/lub zastąpić innym porównaniem
+    # ROI - Region of Insert współrzędne fragmentu który chcemy przybliżyć i ocenić w formacie [w1,w2,k1,k2]
+
+    fig, axs = plt.subplots(1, 3, sharey=True)
+    fig.set_size_inches(16, 5)
+
+    ReferenceFrame = cv2.cvtColor(ReferenceFrame, cv2.COLOR_YCrCb2RGB)
+    DecompressedFrame = cv2.cvtColor(DecompressedFrame, cv2.COLOR_YCrCb2RGB)
+
+    axs[0].imshow(ReferenceFrame[ROI[0] : ROI[1], ROI[2] : ROI[3]])
+    axs[2].imshow(DecompressedFrame[ROI[0] : ROI[1], ROI[2] : ROI[3]])
+    diff = ReferenceFrame[ROI[0] : ROI[1], ROI[2] : ROI[3]].astype(
+        float
+    ) - DecompressedFrame[ROI[0] : ROI[1], ROI[2] : ROI[3]].astype(float)
+    print(np.min(diff), np.max(diff))
+
+    # to dodalem zeby nie wyskakiwalo ostrzezenie, zobaczyc jaka jest roznica bez tego
+    diff = (diff - np.min(diff)) / (np.max(diff) - np.min(diff))
+    axs[1].imshow(diff)
+
+    # axs[1].imshow(diff,vmin=np.min(diff),vmax=np.max(diff))
 
 
 ##############################################################################
@@ -250,11 +270,11 @@ for i in range(ile):
         cCr = KeyFrame.Cr
         Decompresed_Frame = decompress_KeyFrame(KeyFrame)
     else:  # kompresja
-        Compress_data = compress_not_KeyFrame(Frame_class, KeyFrame)
+        Compress_data = compress_not_KeyFrame(Frame_class, KeyFrame, dzielnik)
         cY = Compress_data.Y
         cCb = Compress_data.Cb
         cCr = Compress_data.Cr
-        Decompresed_Frame = decompress_not_KeyFrame(Compress_data, KeyFrame)
+        Decompresed_Frame = decompress_not_KeyFrame(Compress_data, KeyFrame, dzielnik)
 
     compression_information[0, i] = (frame[:, :, 0].size - cY.size) / frame[
         :, :, 0
@@ -293,6 +313,8 @@ plt.title(
         plik, subsampling, dzielnik, key_frame_counter
     )
 )
+
+plt.show()
 
 
 # if __name__ == "__main__":
