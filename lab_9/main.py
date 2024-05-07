@@ -12,8 +12,8 @@ ile = 100  # ile klatek odtworzyć? <0 - całość
 key_frame_counter = 4  # co która klatka ma być kluczowa i nie podlegać kompresji
 plot_frames = np.array([30, 45])  # automatycznie wyrysuj wykresy
 auto_pause_frames = np.array([25])  # automatycznie za pauzuj dla klatki
-subsampling = "4:2:2"  # parametry dla chroma subsampling
-dzielnik = 0.25  # dzielnik przy zapisie różnicy
+subsampling = "4:1:0"  # parametry dla chroma subsampling
+dzielnik = 0.1  # dzielnik przy zapisie różnicy
 wyswietlaj_klatki = True  # czy program ma wyświetlać klatki
 ROI = [[0, 100, 0, 100]]  # wyświetlane fragmenty (można podać kilka )
 
@@ -155,11 +155,14 @@ def compress_not_KeyFrame(
 ):
     Compress_data = data()
 
-    # print(Frame_class.Y.dtype, KeyFrame.Y.dtype)
     Compress_data.Y = ((Frame_class.Y - KeyFrame.Y) * dzielnik).astype(np.int32)
     Compress_data.Cb = ((Frame_class.Cb - KeyFrame.Cb) * dzielnik).astype(np.int32)
     Compress_data.Cr = ((Frame_class.Cr - KeyFrame.Cr) * dzielnik).astype(np.int32)
-    # print(Compress_data.Y.dtype, Compress_data.Cb.dtype, Compress_data.Cr.dtype)
+    
+    # RLE
+    # Compress_data.Y = RLE_encode(Compress_data.Y)
+    # Compress_data.Cb = RLE_encode(Compress_data.Cb)
+    # Compress_data.Cr = RLE_encode(Compress_data.Cr)
 
     return Compress_data
 
@@ -168,54 +171,62 @@ def decompress_not_KeyFrame(
     Compress_data, KeyFrame, dzielnik, inne_paramerty_do_dopisania=None
 ):
 
-    Y = (Compress_data.Y / dzielnik) + KeyFrame.Y
-    Cb = (Compress_data.Cb / dzielnik) + KeyFrame.Cb
-    Cr = (Compress_data.Cr / dzielnik) + KeyFrame.Cr
-    # byc moze to rnum do dopisania (repo)
+    # Y = RLE_decode(Compress_data.Y)
+    # Cb = RLE_decode(Compress_data.Cb)
+    # Cr = RLE_decode(Compress_data.Cr)
+
+    Y = Compress_data.Y
+    Cb = Compress_data.Cb
+    Cr = Compress_data.Cr
+
+    Y = (Y / dzielnik) + KeyFrame.Y
+    Cb = (Cb / dzielnik) + KeyFrame.Cb
+    Cr = (Cr / dzielnik) + KeyFrame.Cr
+    
 
     return frame_layers_to_image(Y, Cr, Cb, subsampling)
 
 
-def plotDiffrence(ReferenceFrame, DecompressedFrame, ROI):
-    # bardzo słaby i sztuczny przykład wykorzystania tej opcji
-    # przerobić żeby porównanie było dokonywane w RGB nie YCrCb i/lub zastąpić innym porównaniem
-    # ROI - Region of Insert współrzędne fragmentu który chcemy przybliżyć i ocenić w formacie [w1,w2,k1,k2]
-    fig, axs = plt.subplots(1, 3, sharey=True)
-    fig.set_size_inches(16, 5)
+# def plotDiffrence(ReferenceFrame, DecompressedFrame, ROI):
+#     # bardzo słaby i sztuczny przykład wykorzystania tej opcji
+#     # przerobić żeby porównanie było dokonywane w RGB nie YCrCb i/lub zastąpić innym porównaniem
+#     # ROI - Region of Insert współrzędne fragmentu który chcemy przybliżyć i ocenić w formacie [w1,w2,k1,k2]
+#     fig, axs = plt.subplots(1, 3, sharey=True)
+#     fig.set_size_inches(16, 5)
 
-    ReferenceFrame = cv2.cvtColor(ReferenceFrame, cv2.COLOR_YCrCb2RGB)
-    DecompressedFrame = cv2.cvtColor(DecompressedFrame, cv2.COLOR_YCrCb2RGB)
+#     ReferenceFrame = cv2.cvtColor(ReferenceFrame, cv2.COLOR_YCrCb2RGB)
+#     DecompressedFrame = cv2.cvtColor(DecompressedFrame, cv2.COLOR_YCrCb2RGB)
 
-    axs[0].imshow(ReferenceFrame[ROI[0] : ROI[1], ROI[2] : ROI[3]])
-    axs[2].imshow(DecompressedFrame[ROI[0] : ROI[1], ROI[2] : ROI[3]])
+#     axs[0].imshow(ReferenceFrame[ROI[0] : ROI[1], ROI[2] : ROI[3]])
+#     axs[2].imshow(DecompressedFrame[ROI[0] : ROI[1], ROI[2] : ROI[3]])
 
-    diff_R = ReferenceFrame[ROI[0] : ROI[1], ROI[2] : ROI[3], 0].astype(
-        float
-    ) - DecompressedFrame[ROI[0] : ROI[1], ROI[2] : ROI[3], 0].astype(float)
+#     diff_R = ReferenceFrame[ROI[0] : ROI[1], ROI[2] : ROI[3], 0].astype(
+#         float
+#     ) - DecompressedFrame[ROI[0] : ROI[1], ROI[2] : ROI[3], 0].astype(float)
 
-    diff_G = ReferenceFrame[ROI[0] : ROI[1], ROI[2] : ROI[3], 1].astype(
-        float
-    ) - DecompressedFrame[ROI[0] : ROI[1], ROI[2] : ROI[3], 1].astype(float)
+#     diff_G = ReferenceFrame[ROI[0] : ROI[1], ROI[2] : ROI[3], 1].astype(
+#         float
+#     ) - DecompressedFrame[ROI[0] : ROI[1], ROI[2] : ROI[3], 1].astype(float)
 
-    diff_B = ReferenceFrame[ROI[0] : ROI[1], ROI[2] : ROI[3], 2].astype(
-        float
-    ) - DecompressedFrame[ROI[0] : ROI[1], ROI[2] : ROI[3], 2].astype(float)
+#     diff_B = ReferenceFrame[ROI[0] : ROI[1], ROI[2] : ROI[3], 2].astype(
+#         float
+#     ) - DecompressedFrame[ROI[0] : ROI[1], ROI[2] : ROI[3], 2].astype(float)
 
-    # Normalize the difference values albo dac .clip(0,255).astype(np.uint8), nie wiem, okaze sie na koncu
-    # diff_R = (diff_R - np.min(diff_R)) / (np.max(diff_R) - np.min(diff_R))
-    # diff_G = (diff_G - np.min(diff_G)) / (np.max(diff_G) - np.min(diff_G))
-    # diff_B = (diff_B - np.min(diff_B)) / (np.max(diff_B) - np.min(diff_B))
+#     # Normalize the difference values albo dac .clip(0,255).astype(np.uint8), nie wiem, okaze sie na koncu
+#     # diff_R = (diff_R - np.min(diff_R)) / (np.max(diff_R) - np.min(diff_R))
+#     # diff_G = (diff_G - np.min(diff_G)) / (np.max(diff_G) - np.min(diff_G))
+#     # diff_B = (diff_B - np.min(diff_B)) / (np.max(diff_B) - np.min(diff_B))
 
-    # diff_R = diff_R.clip(0, 255).astype(np.uint8)
-    # diff_G = diff_G.clip(0, 255).astype(np.uint8)
-    # diff_B = diff_B.clip(0, 255).astype(np.uint8)
-    print(diff_R[:5, :5])
+#     # diff_R = diff_R.clip(0, 255).astype(np.uint8)
+#     # diff_G = diff_G.clip(0, 255).astype(np.uint8)
+#     # diff_B = diff_B.clip(0, 255).astype(np.uint8)
+#     print(diff_R[:5, :5])
 
-    diff_RGB = np.dstack([diff_R, diff_G, diff_B])
+#     diff_RGB = np.dstack([diff_R, diff_G, diff_B])
 
-    print(f"min diff: {np.min(diff_RGB)} max diff: {np.max(diff_RGB)}")
+#     print(f"min diff: {np.min(diff_RGB)} max diff: {np.max(diff_RGB)}")
 
-    axs[1].imshow(diff_RGB)
+#     axs[1].imshow(diff_RGB)
 
 
 def plotDiffrence(ReferenceFrame, DecompressedFrame, ROI):
@@ -241,6 +252,7 @@ def plotDiffrence(ReferenceFrame, DecompressedFrame, ROI):
     axs[1].imshow(diff)
 
     # axs[1].imshow(diff,vmin=np.min(diff),vmax=np.max(diff))
+    print(ReferenceFrame - DecompressedFrame)
 
 
 ##############################################################################
