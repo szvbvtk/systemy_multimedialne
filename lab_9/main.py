@@ -16,6 +16,7 @@ subsampling = "4:1:0"  # parametry dla chroma subsampling
 dzielnik = 0.1  # dzielnik przy zapisie różnicy
 wyswietlaj_klatki = True  # czy program ma wyświetlać klatki
 ROI = [[0, 100, 0, 100]]  # wyświetlane fragmenty (można podać kilka )
+useRle = True  # czy używać kompresji RLE
 
 
 ##############################################################################
@@ -138,10 +139,24 @@ def compress_KeyFrame(Frame_class):
     KeyFrame.Cb = Frame_class.Cb
     KeyFrame.Cr = Frame_class.Cr
 
+    if useRle:
+        KeyFrame.Y = RLE_encode(KeyFrame.Y)
+        KeyFrame.Cb = RLE_encode(KeyFrame.Cb)
+        KeyFrame.Cr = RLE_encode(KeyFrame.Cr)
+
     return KeyFrame
 
 
 def decompress_KeyFrame(KeyFrame):
+    # Y = KeyFrame.Y
+    # Cb = KeyFrame.Cb
+    # Cr = KeyFrame.Cr
+
+    if useRle:
+        KeyFrame.Y = RLE_decode(KeyFrame.Y)
+        KeyFrame.Cb = RLE_decode(KeyFrame.Cb)
+        KeyFrame.Cr = RLE_decode(KeyFrame.Cr)
+
     Y = KeyFrame.Y
     Cb = KeyFrame.Cb
     Cr = KeyFrame.Cr
@@ -158,11 +173,11 @@ def compress_not_KeyFrame(
     Compress_data.Y = ((Frame_class.Y - KeyFrame.Y) * dzielnik).astype(np.int32)
     Compress_data.Cb = ((Frame_class.Cb - KeyFrame.Cb) * dzielnik).astype(np.int32)
     Compress_data.Cr = ((Frame_class.Cr - KeyFrame.Cr) * dzielnik).astype(np.int32)
-    
-    # RLE
-    # Compress_data.Y = RLE_encode(Compress_data.Y)
-    # Compress_data.Cb = RLE_encode(Compress_data.Cb)
-    # Compress_data.Cr = RLE_encode(Compress_data.Cr)
+
+    if useRle:
+        Compress_data.Y = RLE_encode(Compress_data.Y)
+        Compress_data.Cb = RLE_encode(Compress_data.Cb)
+        Compress_data.Cr = RLE_encode(Compress_data.Cr)
 
     return Compress_data
 
@@ -171,9 +186,10 @@ def decompress_not_KeyFrame(
     Compress_data, KeyFrame, dzielnik, inne_paramerty_do_dopisania=None
 ):
 
-    # Y = RLE_decode(Compress_data.Y)
-    # Cb = RLE_decode(Compress_data.Cb)
-    # Cr = RLE_decode(Compress_data.Cr)
+    if useRle:
+        Compress_data.Y = RLE_decode(Compress_data.Y)
+        Compress_data.Cb = RLE_decode(Compress_data.Cb)
+        Compress_data.Cr = RLE_decode(Compress_data.Cr)
 
     Y = Compress_data.Y
     Cb = Compress_data.Cb
@@ -182,7 +198,6 @@ def decompress_not_KeyFrame(
     Y = (Y / dzielnik) + KeyFrame.Y
     Cb = (Cb / dzielnik) + KeyFrame.Cb
     Cr = (Cr / dzielnik) + KeyFrame.Cr
-    
 
     return frame_layers_to_image(Y, Cr, Cb, subsampling)
 
