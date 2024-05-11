@@ -1,0 +1,24 @@
+clip3:
+    [280, 380, 550, 650],
+
+clip4: 
+    [230, 330, 300, 400],
+
+clip5:
+
+
+
+kat = "./VIDEOS"  # katalog z plikami wideo
+plik = "clip_3.mp4"  # nazwa pliku
+ile = 200  # ile klatek odtworzyć? <0 - całość
+key_frame_counter = 4  # co która klatka ma być kluczowa i nie podlegać kompresji
+plot_frames = np.array([349, 439])  # automatycznie wyrysuj wykresy
+# auto_pause_frames = np.array([25])  # automatycznie za pauzuj dla klatki
+auto_pause_frames = np.array([])
+# subsampling = "4:1:0"  # parametry dla chroma subsampling
+# dzielnik = 1  # dzielnik przy zapisie różnicy
+wyswietlaj_klatki = True  # czy program ma wyświetlać klatki
+ROI = [
+    [600, 700, 420, 520],
+]  # wyświetlane fragmenty (można podać kilka )
+useRle = False  # czy używać kompresji RLE
