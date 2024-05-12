@@ -7,28 +7,28 @@ import matplotlib.pyplot as plt
 ##############################################################################
 
 kat = "./VIDEOS"  # katalog z plikami wideo
-plik = "clip_5.mp4"  # nazwa pliku
-ile = 450  # ile klatek odtworzyć? <0 - całość
+plik = "clip_4.mp4"  # nazwa pliku
+ile = 45  # ile klatek odtworzyć? <0 - całość
 key_frame_counter = 4  # co która klatka ma być kluczowa i nie podlegać kompresji
-plot_frames = np.array([349, 439])  # automatycznie wyrysuj wykresy
+plot_frames = np.array([65])  # automatycznie wyrysuj wykresy
 # auto_pause_frames = np.array([25])  # automatycznie za pauzuj dla klatki
 auto_pause_frames = np.array([])
-# subsampling = "4:1:0"  # parametry dla chroma subsampling
+subsampling = "4:1:0"  # parametry dla chroma subsampling
 # dzielnik = 1  # dzielnik przy zapisie różnicy
 wyswietlaj_klatki = True  # czy program ma wyświetlać klatki
 ROI = [
-    [600, 700, 420, 520],
+    [230, 330, 300, 400],
 ]  # wyświetlane fragmenty (można podać kilka )
 useRle = False  # czy używać kompresji RLE
 
-save = True
+save = False
 subsamplings = ["4:4:4", "4:2:2", "4:4:0", "4:2:0", "4:1:1", "4:1:0"]
 dzielniki = [1, 0.5, 0.25, 0.125]
 output = "OUTPUT_diff/" + plik.split(".")[0] + "/"
 
 if not save:
-    dzielniki = [1]
-    subsamplings = ["4:4:4"]
+    dzielniki = [0.25]
+    subsamplings = ["4:1:0"]
 
 
 ##############################################################################
@@ -178,7 +178,11 @@ def compress_not_KeyFrame(
 ):
     Compress_data = data()
 
-    Compress_data.Y = ((Frame_class.Y - KeyFrame.Y) * dzielnik).astype(np.int32)
+    # print(Frame_class.Cr[:10, :10])
+    Compress_data.Y = ((Frame_class.Y - KeyFrame.Y) * dzielnik).astype(
+        np.int32
+    )  # astype tylko po to zeby nie było floatów - wtedy różnice po dzielenie, na obrazku końcowym byłyby znacznie mniejsze
+    # print(KeyFrame.Y.dtype)
     Compress_data.Cb = ((Frame_class.Cb - KeyFrame.Cb) * dzielnik).astype(np.int32)
     Compress_data.Cr = ((Frame_class.Cr - KeyFrame.Cr) * dzielnik).astype(np.int32)
 
@@ -213,9 +217,6 @@ def decompress_not_KeyFrame(
 def plotDifference(
     ReferenceFrame, DecompressedFrame, ROI, dzielnik, subsampling, klatka
 ):
-    # bardzo słaby i sztuczny przykład wykorzystania tej opcji
-    # przerobić żeby porównanie było dokonywane w RGB nie YCrCb i/lub zastąpić innym porównaniem
-    # ROI - Region of Insert współrzędne fragmentu który chcemy przybliżyć i ocenić w formacie [w1,w2,k1,k2]
 
     fig, axs = plt.subplots(1, 3, sharey=True)
     fig.set_size_inches(16, 5)
@@ -231,7 +232,6 @@ def plotDifference(
     ) - DecompressedFrame[ROI[0] : ROI[1], ROI[2] : ROI[3]].astype(float)
     # print(np.min(diff), np.max(diff))
 
-    # to dodalem zeby nie wyskakiwalo ostrzezenie, zobaczyc jaka jest roznica bez tego
     # diff = (diff - np.min(diff)) / (np.max(diff) - np.min(diff))
     # axs[1].imshow(diff)
 
@@ -247,79 +247,175 @@ def plotDifference(
 ##############################################################################
 ####     Głowna pętla programu      ##########################################
 ##############################################################################
-for dzielnik in dzielniki:
-    for subsampling in subsamplings:
-        cap = cv2.VideoCapture(kat + "\\" + plik)
+# for dzielnik in dzielniki:
+#     for subsampling in subsamplings:
+#         cap = cv2.VideoCapture(kat + "\\" + plik)
 
-        if ile < 0:
-            ile = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+#         if ile < 0:
+#             ile = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
-        cv2.namedWindow("Normal Frame")
-        cv2.namedWindow("Decompressed Frame")
+#         cv2.namedWindow("Normal Frame")
+#         cv2.namedWindow("Decompressed Frame")
 
-        compression_information = np.zeros((3, ile))
+#         compression_information = np.zeros((3, ile))
 
-        for i in range(ile):
-            ret, frame = cap.read()
-            if wyswietlaj_klatki:
-                cv2.imshow("Normal Frame", frame)
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2YCrCb)
-            Frame_class = frame_image_to_class(frame, subsampling)
-            if (i % key_frame_counter) == 0:  # pobieranie klatek kluczowych
-                KeyFrame = compress_KeyFrame(Frame_class)
-                cY = KeyFrame.Y
-                cCb = KeyFrame.Cb
-                cCr = KeyFrame.Cr
-                Decompresed_Frame = decompress_KeyFrame(KeyFrame)
-            else:  # kompresja
-                Compress_data = compress_not_KeyFrame(Frame_class, KeyFrame, dzielnik)
-                cY = Compress_data.Y
-                cCb = Compress_data.Cb
-                cCr = Compress_data.Cr
-                Decompresed_Frame = decompress_not_KeyFrame(
-                    Compress_data, KeyFrame, dzielnik
-                )
+#         for i in range(ile):
+#             ret, frame = cap.read()
+#             if wyswietlaj_klatki:
+#                 cv2.imshow("Normal Frame", frame)
+#             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2YCrCb)
+#             Frame_class = frame_image_to_class(frame, subsampling)
+#             if (i % key_frame_counter) == 0:  # pobieranie klatek kluczowych
+#                 KeyFrame = compress_KeyFrame(Frame_class)
+#                 cY = KeyFrame.Y
+#                 cCb = KeyFrame.Cb
+#                 cCr = KeyFrame.Cr
+#                 Decompresed_Frame = decompress_KeyFrame(KeyFrame)
+#             else:  # kompresja
+#                 Compress_data = compress_not_KeyFrame(Frame_class, KeyFrame, dzielnik)
+#                 cY = Compress_data.Y
+#                 cCb = Compress_data.Cb
+#                 cCr = Compress_data.Cr
+#                 Decompresed_Frame = decompress_not_KeyFrame(
+#                     Compress_data, KeyFrame, dzielnik
+#                 )
 
-            compression_information[0, i] = (frame[:, :, 0].size - cY.size) / frame[
-                :, :, 0
-            ].size
-            compression_information[1, i] = (frame[:, :, 0].size - cCb.size) / frame[
-                :, :, 0
-            ].size
-            compression_information[2, i] = (frame[:, :, 0].size - cCr.size) / frame[
-                :, :, 0
-            ].size
-            if wyswietlaj_klatki:
-                cv2.imshow(
-                    "Decompressed Frame",
-                    cv2.cvtColor(Decompresed_Frame, cv2.COLOR_YCrCb2BGR),
-                )
+#             compression_information[0, i] = (frame[:, :, 0].size - cY.size) / frame[
+#                 :, :, 0
+#             ].size
+#             compression_information[1, i] = (frame[:, :, 0].size - cCb.size) / frame[
+#                 :, :, 0
+#             ].size
+#             compression_information[2, i] = (frame[:, :, 0].size - cCr.size) / frame[
+#                 :, :, 0
+#             ].size
+#             if wyswietlaj_klatki:
+#                 cv2.imshow(
+#                     "Decompressed Frame",
+#                     cv2.cvtColor(Decompresed_Frame, cv2.COLOR_YCrCb2BGR),
+#                 )
 
-            if np.any(plot_frames == i):  # rysuj wykresy
-                for r in ROI:
-                    plotDifference(
-                        frame, Decompresed_Frame, r, dzielnik, subsampling, i
-                    )
+#             if np.any(plot_frames == i):  # rysuj wykresy
+#                 for r in ROI:
+#                     plotDifference(
+#                         frame, Decompresed_Frame, r, dzielnik, subsampling, i
+#                     )
 
-            if np.any(auto_pause_frames == i):
-                cv2.waitKey(-1)  # wait until any key is pressed
+#             if np.any(auto_pause_frames == i):
+#                 cv2.waitKey(-1)  # wait until any key is pressed
 
-            k = cv2.waitKey(1) & 0xFF
+#             k = cv2.waitKey(1) & 0xFF
 
-            if k == ord("q"):
-                break
-            elif k == ord("p"):
-                cv2.waitKey(-1)  # wait until any key is pressed
+#             if k == ord("q"):
+#                 break
+#             elif k == ord("p"):
+#                 cv2.waitKey(-1)  # wait until any key is pressed
 
-plt.figure()
-plt.plot(np.arange(0, ile), compression_information[0, :] * 100)
-plt.plot(np.arange(0, ile), compression_information[1, :] * 100)
-plt.plot(np.arange(0, ile), compression_information[2, :] * 100)
-plt.title(
-    "File:{}, subsampling={}, divider={}, KeyFrame={} ".format(
-        plik, subsampling, dzielnik, key_frame_counter
+# plt.figure()
+# plt.plot(np.arange(0, ile), compression_information[0, :] * 100)
+# plt.plot(np.arange(0, ile), compression_information[1, :] * 100)
+# plt.plot(np.arange(0, ile), compression_information[2, :] * 100)
+# plt.title(
+#     "File:{}, subsampling={}, divider={}, KeyFrame={} ".format(
+#         plik, subsampling, dzielnik, key_frame_counter
+#     )
+# )
+
+# if not save:
+#     plt.show()
+
+# RLE
+subsampling = "4:2:0"
+dzielnik = 1
+useRle = True
+output = "OUTPUT_RLE/"
+save = True
+plik = "clip_5.mp4"  # nazwa pliku
+ile = 20  # ile klatek odtworzyć? <0 - całość
+key_frame_counters = np.array(
+    [2, 4, 6, 8, 12, 14]
+)  # co która klatka ma być kluczowa i nie podlegać kompresji
+plot_frames = np.array([])  # automatycznie wyrysuj wykresy
+auto_pause_frames = np.array([])
+ROI = [
+    [230, 330, 300, 400],
+]  # wyświetlane fragmenty (można podać kilka )
+
+for key_frame_counter in key_frame_counters:
+    cap = cv2.VideoCapture(kat + "\\" + plik)
+
+    if ile < 0:
+        ile = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+
+    cv2.namedWindow("Normal Frame")
+    cv2.namedWindow("Decompressed Frame")
+
+    compression_information = np.zeros((3, ile))
+
+    for i in range(ile):
+        ret, frame = cap.read()
+        if wyswietlaj_klatki:
+            cv2.imshow("Normal Frame", frame)
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2YCrCb)
+        Frame_class = frame_image_to_class(frame, subsampling)
+        if (i % key_frame_counter) == 0:  # pobieranie klatek kluczowych
+            KeyFrame = compress_KeyFrame(Frame_class)
+            cY = KeyFrame.Y
+            cCb = KeyFrame.Cb
+            cCr = KeyFrame.Cr
+            Decompresed_Frame = decompress_KeyFrame(KeyFrame)
+        else:  # kompresja
+            Compress_data = compress_not_KeyFrame(Frame_class, KeyFrame, dzielnik)
+            cY = Compress_data.Y
+            cCb = Compress_data.Cb
+            cCr = Compress_data.Cr
+            Decompresed_Frame = decompress_not_KeyFrame(
+                Compress_data, KeyFrame, dzielnik
+            )
+
+        compression_information[0, i] = (frame[:, :, 0].size - cY.size) / frame[
+            :, :, 0
+        ].size
+        compression_information[1, i] = (frame[:, :, 0].size - cCb.size) / frame[
+            :, :, 0
+        ].size
+        compression_information[2, i] = (frame[:, :, 0].size - cCr.size) / frame[
+            :, :, 0
+        ].size
+        if wyswietlaj_klatki:
+            cv2.imshow(
+                "Decompressed Frame",
+                cv2.cvtColor(Decompresed_Frame, cv2.COLOR_YCrCb2BGR),
+            )
+
+        if np.any(plot_frames == i):  # rysuj wykresy
+            for r in ROI:
+                plotDifference(frame, Decompresed_Frame, r, dzielnik, subsampling, i)
+
+        if np.any(auto_pause_frames == i):
+            cv2.waitKey(-1)  # wait until any key is pressed
+
+        k = cv2.waitKey(1) & 0xFF
+
+        if k == ord("q"):
+            break
+        elif k == ord("p"):
+            cv2.waitKey(-1)  # wait until any key is pressed
+
+    plt.figure()
+    plt.plot(np.arange(0, ile), compression_information[0, :] * 100, label="Y")
+    plt.plot(np.arange(0, ile), compression_information[1, :] * 100, label="Cb")
+    plt.plot(np.arange(0, ile), compression_information[2, :] * 100, label="Cr")
+    plt.xlabel("Frame")
+    plt.ylabel("Compression rate [%]")
+    plt.legend()
+    plt.title(
+        "File:{}, subsampling={}, divider={}, KeyFrame={} RLE".format(
+            plik, subsampling, dzielnik, key_frame_counter
+        )
     )
-)
 
-if not save:
-    plt.show()
+    if not save:
+        plt.show()
+    else:
+        plt.savefig(output + f"_RLE_key_frame_{key_frame_counter}.png")

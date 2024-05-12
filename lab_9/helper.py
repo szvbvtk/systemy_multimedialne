@@ -2,7 +2,7 @@ import cv2
 
 import matplotlib.pyplot as plt
 
-file = "VIDEOS/clip_5.mp4"
+file = "VIDEOS/clip_3.mp4"
 
 # Open the video file
 cap = cv2.VideoCapture(file)
