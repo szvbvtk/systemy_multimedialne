@@ -16,6 +16,8 @@ def read_image(image_path):
     image = cv2.imread(str(image_path))
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
+    print(image.dtype)
+
     return image
 
 
@@ -69,12 +71,11 @@ def MSE(source_image, target_image):
 
 
 def NMSE(source_image, target_image):
-    return np.mean((source_image - target_image) ** 2) / np.mean(target_image**2)
+    return MSE(source_image, target_image) / MSE(target_image, np.zeros_like(target_image))
 
 
-def PSNR(source_image, target_image):
-    # sprawdzic czy sygnal jest w uint8 - 255
-    return 10 * np.log10(255**2 / MSE(source_image, target_image))
+def PSNR(source_image, target_image, max_value=255):
+    return 10 * np.log10(max_value**2 / MSE(source_image, target_image))
 
 
 def IF(source_image, target_image):
@@ -84,6 +85,14 @@ def IF(source_image, target_image):
         np.multiply(source_image, target_image)
     )
 
+def measure_quality(source_image, target_image):
+    mse = MSE(source_image, target_image)
+    nmse = NMSE(source_image, target_image)
+    psnr = PSNR(source_image, target_image)
+    if_ = IF(source_image, target_image)
+    ssim = SSIM(source_image, target_image)
+
+    return mse, nmse, psnr, if_, ssim
 
 def SSIM(source_image, target_image):
     return ssim(source_image, target_image, channel_axis=2)
@@ -99,15 +108,44 @@ def plot_images(image_1, image_2, title1, title2):
     plt.show()
 
 
-if __name__ == "__main__":
+def main_test():
     image_path = Path("./img/1.jpg")
 
     image = read_image(image_path)
-    # new_image = jpeg_compress(image, 5)
-    # new_image = blur_image(image, 3)
-    new_image = noise_image(image, 0.001)
+    new_image = jpeg_compress(image, 10)
+    # new_image = blur_image(image, 15)
+    # new_image = noise_image(image, 15)
 
     ssim = SSIM(image, new_image)
     print(ssim)
 
     plot_images(image, new_image, "1", "2")
+
+
+def main_generate():
+
+    SAVE = True
+
+    image_path = Path("./img/1.jpg")
+    output_dir = Path("./output")
+    image = read_image(image_path)
+    method = 'jpeg_compress'
+
+    qualities = np.linspace(8, 70, 15).astype(np.uint8)
+    modified_images = [jpeg_compress(image, quality) for quality in qualities]
+
+    if SAVE:
+        [p.unlink() for p in output_dir.glob('*.jpg') if p.is_file()]
+        [cv2.imwrite(str(output_dir / f'{i+1}_{method}_{quality}.jpg'), modified_image) for i, (quality, modified_image) in enumerate(zip(qualities, modified_images))]
+    else:
+        [cv2.imshow(f'quality: {quality}%', modified_image) for quality, modified_image in zip(qualities, modified_images)]
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+
+
+
+
+
+if __name__ == "__main__":
+    # main_test()
+    main_generate()
