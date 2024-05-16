@@ -4,6 +4,7 @@ import cv2
 import numpy as np
 import numpy as np
 from pathlib import Path
+import pandas as pd
 import matplotlib.pyplot as plt
 from skimage.metrics import structural_similarity as ssim
 
@@ -14,9 +15,7 @@ np.random.seed(42)
 # Zniekształcenia obrazu
 def read_image(image_path):
     image = cv2.imread(str(image_path))
-    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-
-    print(image.dtype)
+    # image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
     return image
 
@@ -71,7 +70,9 @@ def MSE(source_image, target_image):
 
 
 def NMSE(source_image, target_image):
-    return MSE(source_image, target_image) / MSE(target_image, np.zeros_like(target_image))
+    return MSE(source_image, target_image) / MSE(
+        target_image, np.zeros_like(target_image)
+    )
 
 
 def PSNR(source_image, target_image, max_value=255):
@@ -85,6 +86,11 @@ def IF(source_image, target_image):
         np.multiply(source_image, target_image)
     )
 
+
+def SSIM(source_image, target_image):
+    return ssim(source_image, target_image, channel_axis=2)
+
+
 def measure_quality(source_image, target_image):
     mse = MSE(source_image, target_image)
     nmse = NMSE(source_image, target_image)
@@ -92,10 +98,7 @@ def measure_quality(source_image, target_image):
     if_ = IF(source_image, target_image)
     ssim = SSIM(source_image, target_image)
 
-    return mse, nmse, psnr, if_, ssim
-
-def SSIM(source_image, target_image):
-    return ssim(source_image, target_image, channel_axis=2)
+    return [mse, nmse, psnr, if_, ssim]
 
 
 def plot_images(image_1, image_2, title1, title2):
@@ -108,11 +111,18 @@ def plot_images(image_1, image_2, title1, title2):
     plt.show()
 
 
+image_path = Path("./img/1.jpg")
+output_dir = Path("./output")
+
+
 def main_test():
     image_path = Path("./img/1.jpg")
 
     image = read_image(image_path)
-    new_image = jpeg_compress(image, 10)
+    new_image = jpeg_compress(image, 5)
+
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    new_image = cv2.cvtColor(new_image, cv2.COLOR_BGR2RGB)
     # new_image = blur_image(image, 15)
     # new_image = noise_image(image, 15)
 
@@ -126,26 +136,55 @@ def main_generate():
 
     SAVE = True
 
-    image_path = Path("./img/1.jpg")
-    output_dir = Path("./output")
     image = read_image(image_path)
-    method = 'jpeg_compress'
+    method = "jpeg_compress"
 
     qualities = np.linspace(8, 70, 15).astype(np.uint8)
     modified_images = [jpeg_compress(image, quality) for quality in qualities]
 
     if SAVE:
-        [p.unlink() for p in output_dir.glob('*.jpg') if p.is_file()]
-        [cv2.imwrite(str(output_dir / f'{i+1}_{method}_{quality}.jpg'), modified_image) for i, (quality, modified_image) in enumerate(zip(qualities, modified_images))]
+        [p.unlink() for p in output_dir.glob("*.jpg") if p.is_file()]
+        [
+            cv2.imwrite(
+                str(
+                    output_dir / f"{i+1}_{method}_{quality}.jpg",
+                ),
+                modified_image,
+            )
+            for i, (quality, modified_image) in enumerate(
+                zip(qualities, modified_images)
+            )
+        ]
     else:
-        [cv2.imshow(f'quality: {quality}%', modified_image) for quality, modified_image in zip(qualities, modified_images)]
+        [
+            cv2.imshow(f"quality: {quality}%", modified_image)
+            for quality, modified_image in zip(qualities, modified_images)
+        ]
         cv2.waitKey(0)
         cv2.destroyAllWindows()
 
 
+def main_stats():
+    image_path = Path("./img/1.jpg")
 
+    image = read_image(image_path)
+
+    stats = []
+    paths = sorted(output_dir.glob("*.jpg"), key=lambda x: int(x.stem.split("_")[0]))
+    for path in paths:
+        modified_image = read_image(path)
+        quality = f"{path.stem.split('_')[-1]}%"
+        stats.append([quality] + measure_quality(image, modified_image))
+
+    df = pd.DataFrame(stats, columns=["Quality", "MSE", "NMSE", "PSNR", "IF", "SSIM"])
+    df = df.set_index("Quality")
+
+    df.to_csv(output_dir / "stats.csv")
 
 
 if __name__ == "__main__":
     # main_test()
-    main_generate()
+    # main_generate()
+    main_stats()
+
+    # nie wiem czy statystyki są mierzone poprawnie, do sprawdzenia
