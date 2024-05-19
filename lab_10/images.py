@@ -20,8 +20,8 @@ def read_image(image_path):
     return image
 
 
-def jpeg_compress(image, quality):
-    encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), quality]
+def jpeg_compress(image, alpha):
+    encode_param = [int(cv2.IMWRITE_JPEG_alpha), alpha]
     _, encimage = cv2.imencode(".jpg", image, encode_param)
     decimage = cv2.imdecode(encimage, 1)
 
@@ -82,12 +82,12 @@ def main_test():
     image_path = Path("./img/1.jpg")
 
     image = read_image(image_path)
-    new_image = jpeg_compress(image, 5)
+    # new_image = jpeg_compress(image, 5)
+    # new_image = blur_image(image, 5)
+    new_image = noise_image(image, 2)
 
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     new_image = cv2.cvtColor(new_image, cv2.COLOR_BGR2RGB)
-    # new_image = blur_image(image, 15)
-    # new_image = noise_image(image, 15)
 
     plot_images(image, new_image, "1", "2")
 
@@ -97,28 +97,31 @@ def main_generate():
     SAVE = True
 
     image = read_image(image_path)
-    method = "jpeg_compress"
+    method = "noise"
 
-    qualities = np.linspace(8, 70, 15).astype(np.uint8)
-    modified_images = [jpeg_compress(image, quality) for quality in qualities]
+    # qualities = np.linspace(8, 71, 15).astype(np.uint8)
+    # qualities = np.array([5, 10, 15, 20, 25, 30, 35, 40 , 45, 50, 55, 60, 65, 75, 80])
+    # modified_images = [jpeg_compress(image, alpha) for alpha in qualities]
+    A = np.linspace(0.1, 5.5, 15)
+    modified_images = [noise_image(image, alpha) for alpha in A]
 
     if SAVE:
         [p.unlink() for p in output_dir.glob("*.jpg") if p.is_file()]
         [
             cv2.imwrite(
                 str(
-                    output_dir / f"{i+1}_{method}_{quality}.jpg",
+                    output_dir / f"{i+1}_{method}_{round(alpha, 2)}.jpg",
                 ),
                 modified_image,
             )
-            for i, (quality, modified_image) in enumerate(
-                zip(qualities, modified_images)
+            for i, (alpha, modified_image) in enumerate(
+                zip(A, modified_images)
             )
         ]
     else:
         [
-            cv2.imshow(f"quality: {quality}%", modified_image)
-            for quality, modified_image in zip(qualities, modified_images)
+            cv2.imshow(f"alpha: {alpha}%", modified_image)
+            for alpha, modified_image in zip(A, modified_images)
         ]
         cv2.waitKey(0)
         cv2.destroyAllWindows()
@@ -127,5 +130,3 @@ def main_generate():
 if __name__ == "__main__":
     # main_test()
     main_generate()
-
-    # nie wiem czy statystyki są mierzone poprawnie, do sprawdzenia
