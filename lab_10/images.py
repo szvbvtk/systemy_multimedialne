@@ -110,7 +110,7 @@ def main_generate():
         [
             cv2.imwrite(
                 str(
-                    output_dir / f"{i+1}_{method}_{round(alpha, 2)}.jpg",
+                    output_dir / f"{i+1}_{method}_{round(alpha, 2)}.png",
                 ),
                 modified_image,
             )
