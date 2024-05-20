@@ -61,7 +61,7 @@ def calculate_norms():
     image = read_image(image_path)
 
     stats = []
-    paths = sorted(output_dir.glob("*.jpg"), key=lambda x: int(x.stem.split("_")[0]))
+    paths = sorted(output_dir.glob("*.png"), key=lambda x: int(x.stem.split("_")[0]))
     for i, path in enumerate(paths):
         modified_image = read_image(path)
         quality = f"{path.stem.split('_')[-1]}%"
@@ -69,6 +69,7 @@ def calculate_norms():
 
     df = pd.DataFrame(stats, columns=["image_id", "MSE", "NMSE", "PSNR", "IF", "SSIM"])
     df = df.set_index("image_id")
+    df = df.round(decimals=2)
 
     df.to_csv(output_dir / "norms.csv")
 
@@ -155,13 +156,20 @@ def main():
     norms = pd.read_csv(output_dir / "norms.csv", index_col="image_id")
     # sns.pairplot(norms)
     # plt.show()
-    answers = pd.read_csv(output_dir / "_results.csv", index_col="person")
+    answers = pd.read_csv(output_dir / "results.csv", index_col="Nazwa użytkownika")
+    fct = pd.factorize(answers.index)
+    answers.index = fct[0]
+    answers = answers.drop(columns=["Sygnatura czasowa"])
+    num_columns = len(answers.columns)
     answers = answers.transpose()
+    # # print(num_columns)
     answers.index.name = "image_id"
+    answers.index = np.arange(1, num_columns + 1)
+    print(answers)
     # print(answers.values)
 
-    data = pd.concat([norms, answers], axis=1)
-    print(answers.columns.tolist())
+    # data = pd.concat([norms, answers], axis=1)
+    # print(answers.columns.tolist())
 
     # generate_pairs(norms.iloc[:, 1].values, answers.values)
 
@@ -170,5 +178,5 @@ if __name__ == "__main__":
     # calculate_norms()
     # create_random_answers()
 
-    # main()
-    test()
+    main()
+    # test()
