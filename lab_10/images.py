@@ -21,7 +21,7 @@ def read_image(image_path):
 
 
 def jpeg_compress(image, alpha):
-    encode_param = [int(cv2.IMWRITE_JPEG_alpha), alpha]
+    encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), alpha]
     _, encimage = cv2.imencode(".jpg", image, encode_param)
     decimage = cv2.imdecode(encimage, 1)
 
@@ -83,8 +83,8 @@ def main_test():
 
     image = read_image(image_path)
     # new_image = jpeg_compress(image, 5)
-    # new_image = blur_image(image, 5)
-    new_image = noise_image(image, 2)
+    new_image = blur_image(image, 13)
+    # new_image = noise_image(image, 2)
 
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     new_image = cv2.cvtColor(new_image, cv2.COLOR_BGR2RGB)
@@ -97,26 +97,28 @@ def main_generate():
     SAVE = True
 
     image = read_image(image_path)
-    method = "noise"
+    A = np.linspace(0.1, 5, 5)
+    modified_images1 = [noise_image(image, alpha) for alpha in A]
+    qualities = np.array([5, 10, 15, 40, 50])
+    modified_images2 = [jpeg_compress(image, alpha) for alpha in qualities]
+    A = np.array([5,7,9,11,13])
+    modified_images3 = [blur_image(image, alpha) for alpha in A]
 
-    # qualities = np.linspace(8, 71, 15).astype(np.uint8)
-    # qualities = np.array([5, 10, 15, 20, 25, 30, 35, 40 , 45, 50, 55, 60, 65, 75, 80])
-    # modified_images = [jpeg_compress(image, alpha) for alpha in qualities]
-    A = np.linspace(0.1, 5.5, 15)
-    modified_images = [noise_image(image, alpha) for alpha in A]
+    modified_images = modified_images1 + modified_images2 + modified_images3
+    A = np.concatenate([A, qualities, A])
+
+    methods = ["noise"] * 5 + ["jpeg"] * 5 + ["blur"] * 5
 
     if SAVE:
-        [p.unlink() for p in output_dir.glob("*.jpg") if p.is_file()]
+        [p.unlink() for p in output_dir.glob("*.png") if p.is_file()]
         [
             cv2.imwrite(
                 str(
-                    output_dir / f"{i+1}_{method}_{round(alpha, 2)}.png",
+                    output_dir / f"{i+1}_{methods[i]}_{a}.png",
                 ),
                 modified_image,
             )
-            for i, (alpha, modified_image) in enumerate(
-                zip(A, modified_images)
-            )
+            for i, (a, modified_image) in enumerate(zip(A, modified_images))
         ]
     else:
         [
