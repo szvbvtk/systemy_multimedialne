@@ -24,3 +24,5 @@ import numpy as np
 
 numbers = np.random.choice(range(1, 16), size=15, replace=False)
 print(numbers)
+
+

@@ -74,38 +74,27 @@ def calculate_norms():
     df.to_csv(output_dir / "norms.csv")
 
 
-def generate_pairs(norm, MOS):
-    All = []
-    MeanPerPerson = []
+def create_random_answers():
+    import random
 
-    for i in range(MOS.shape[0]):
-        for j in range(MOS.shape[1]):
-            All.append([norm[i], MOS[i][j]])
+    list = []
+    for i in range(30):
+        inner_list = []
+        for j in range(15):
+            inner_list.append(random.randint(1, 5))
 
-    print(All)
+        list.append(inner_list)
 
+    columns = [f"image_{i+1}" for i in range(15)]
+    id = [f"person_{i}_0" for i in range(10)]
+    id += [f"person_{i}_1" for i in range(10)]
+    id += [f"person_{i}_2" for i in range(10)]
 
-# def create_random_answers():
-#     import random
+    df = pd.DataFrame(list, columns=columns)
+    df.index = id
+    df.index.name = "person"
 
-#     list = []
-#     for i in range(30):
-#         inner_list = []
-#         for j in range(15):
-#             inner_list.append(random.randint(1, 5))
-
-#         list.append(inner_list)
-
-#     columns = [f"image_{i+1}" for i in range(15)]
-#     id = [f"person_{i}_0" for i in range(10)]
-#     id += [f"person_{i}_1" for i in range(10)]
-#     id += [f"person_{i}_2" for i in range(10)]
-
-#     df = pd.DataFrame(list, columns=columns)
-#     df.index = id
-#     df.index.name = "person"
-
-#     df.to_csv(output_dir / "_results.csv")
+    df.to_csv(output_dir / "_results.csv")
 
 
 def create_random_answers():
@@ -133,7 +122,7 @@ def create_random_answers():
 
 
 def test():
-    answers = pd.read_csv(output_dir / "_results.csv", index_col="id").iloc[:, 0:5]
+    answers = pd.read_csv(output_dir / "answers.csv", index_col="id").iloc[:, 0:5]
     # 3
     # answers = answers.groupby("person").mean()
     # answers = answers.transpose()
@@ -152,30 +141,56 @@ def test():
     print(answers)
 
 
+
+
+
+def generate_pairs(norm, MOS):
+    All = []
+    MeanPerPerson = []
+    MeanPerImage = []
+
+
+
+    return All, MeanPerPerson, MeanPerImage
+
+
+
+def generatePairs(Norm, MOS):
+    All = []
+    MeanPerPerson = []
+    MeanPerPic = []
+
+    for i in range(MOS.shape[0]):
+        for j in range(MOS.shape[1]):
+            All.append([Norm[i], MOS[i][j]])
+
+    return All, MeanPerPerson, MeanPerPic
+
 def main():
+
     norms = pd.read_csv(output_dir / "norms.csv", index_col="image_id")
-    # sns.pairplot(norms)
-    # plt.show()
-    answers = pd.read_csv(output_dir / "results.csv", index_col="Nazwa użytkownika")
+    answers = pd.read_csv(output_dir / "answers.csv", index_col="Nazwa użytkownika")
+
     fct = pd.factorize(answers.index)
     answers.index = fct[0]
+
     answers = answers.drop(columns=["Sygnatura czasowa"])
     num_columns = len(answers.columns)
     answers = answers.transpose()
-    # # print(num_columns)
     answers.index.name = "image_id"
     answers.index = np.arange(1, num_columns + 1)
-    print(answers)
-    # print(answers.values)
+    # print(answers)
 
-    # data = pd.concat([norms, answers], axis=1)
-    # print(answers.columns.tolist())
+    answers_mean_per_image = answers.mean(axis=1).round(decimals=2)
+    answers_mean_per_person = answers.groupby(answers.columns, axis=1).mean().round(decimals=2)
+    # print(answers_mean_per_image)
+    # print(answers_mean_per_person)
 
-    # generate_pairs(norms.iloc[:, 1].values, answers.values)
+
 
 
 if __name__ == "__main__":
-    # calculate_norms()
+    calculate_norms()
     # create_random_answers()
 
     main()

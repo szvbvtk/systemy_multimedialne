@@ -1,3 +1,16 @@
 tytuły pytań dla obrazków od 1 do 15
 [ 7  1 15  6 10  4 13 14  2  3 12  8  5  9 11 ] 
 np obrazek 1 ma tytuł pytania 7
+
+
+
+
+# def hjkkhjhjkhjkkjhhj(hjkkhjhjk, jkjhkhjk):
+#     All = []
+#     MeanPerPerson = []
+
+#     for i in range(MOS.shape[0]):
+#         for j in range(MOS.shape[1]):
+#             All.append([norm[i], MOS[i][j]])
+
+#     print(All)
