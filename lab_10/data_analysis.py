@@ -141,30 +141,46 @@ def test():
     print(answers)
 
 
+def generate_pairs(norm, answers):
+    answers_per_image = answers.mean(axis=1).round(decimals=2).values  # mean
+    answers_per_person = (
+        answers.groupby(answers.columns, axis=1).mean().round(decimals=2).values
+    )  # mean
 
+    norm = norm.tolist()
+    answers = answers.values
 
-
-def generate_pairs(norm, MOS):
     All = []
     MeanPerPerson = []
     MeanPerImage = []
 
+    for i in range(answers.shape[0]):
+        for j in range(answers.shape[1]):
+            All.append([norm[i], answers[i, j]])
 
+    for i in range(answers_per_person.shape[0]):
+        for j in range(answers_per_person.shape[1]):
+            MeanPerPerson.append([norm[i], answers_per_person[i, j]])
+
+    for i in range(answers_per_image.shape[0]):
+        MeanPerImage.append([norm[i], answers_per_image[i]])
 
     return All, MeanPerPerson, MeanPerImage
 
 
+def draw_plot(All, MeanPerPerson, MeanPerImage):
+    fig, axs = plt.subplots(1, 3, figsize=(15, 5))
 
-def generatePairs(Norm, MOS):
-    All = []
-    MeanPerPerson = []
-    MeanPerPic = []
+    All = np.array(All)
+    MeanPerPerson = np.array(MeanPerPerson)
+    MeanPerImage = np.array(MeanPerImage)
 
-    for i in range(MOS.shape[0]):
-        for j in range(MOS.shape[1]):
-            All.append([Norm[i], MOS[i][j]])
+    sns.scatterplot(x=All[:, 0], y=All[:, 1], ax=axs[0])
+    sns.scatterplot(x=MeanPerPerson[:, 0], y=MeanPerPerson[:, 1], ax=axs[1])
+    sns.scatterplot(x=MeanPerImage[:, 0], y=MeanPerImage[:, 1], ax=axs[2])
 
-    return All, MeanPerPerson, MeanPerPic
+    plt.show()
+
 
 def main():
 
@@ -182,11 +198,19 @@ def main():
     # print(answers)
 
     answers_mean_per_image = answers.mean(axis=1).round(decimals=2)
-    answers_mean_per_person = answers.groupby(answers.columns, axis=1).mean().round(decimals=2)
-    # print(answers_mean_per_image)
+    answers_mean_per_person = (
+        answers.groupby(answers.columns, axis=1).mean().round(decimals=2)
+    )
+    print(answers_mean_per_image)
     # print(answers_mean_per_person)
+    # print(norms.index.tolist())
+    # print(answers.values)
+    # print()
+    # answers_array = answers.values
+    # print(answers_array)
 
-
+    All, MeanPerPerson, MeanPerImage = generate_pairs(norms.index, answers)
+    draw_plot(All, MeanPerPerson, MeanPerImage)
 
 
 if __name__ == "__main__":
