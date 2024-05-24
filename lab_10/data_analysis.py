@@ -152,7 +152,7 @@ def generate_pairs(norm, answers):
     )
 
 
-def draw_plot(All, MeanPerPerson, MeanPerImage, predictions, X):
+def draw_plot(All, MeanPerPerson, MeanPerImage, predictions, X, index=False):
     fig, axs = plt.subplots(1, 3, figsize=(15, 5))
 
     persons_A = np.array(All[:, 2], dtype=np.uint8)
@@ -163,11 +163,15 @@ def draw_plot(All, MeanPerPerson, MeanPerImage, predictions, X):
     MeanPerImage = np.array(MeanPerImage)
 
     sns.scatterplot(x=All[:, 0], y=All[:, 1], ax=axs[0], style=persons_A)
-    axs[0].plot(X[0], predictions[0], color="magenta")
-    sns.scatterplot(x=MeanPerPerson[:, 0], y=MeanPerPerson[:, 1], ax=axs[1], style=persons_P)
-    axs[1].plot(X[1], predictions[1], color="magenta")
+    sns.scatterplot(
+        x=MeanPerPerson[:, 0], y=MeanPerPerson[:, 1], ax=axs[1], style=persons_P
+    )
     sns.scatterplot(x=MeanPerImage[:, 0], y=MeanPerImage[:, 1], ax=axs[2])
-    axs[2].plot(X[2], predictions[2], color="magenta")
+
+    if not index:
+        axs[0].plot(X[0], predictions[0], color="magenta")
+        axs[1].plot(X[1], predictions[1], color="magenta")
+        axs[2].plot(X[2], predictions[2], color="magenta")
 
     axs[0].set_title("Wszystkie oceny")
     axs[0].set_xlabel("Miara jakości")
@@ -198,7 +202,6 @@ def draw_heatmap(corr_matrix):
     return fig
 
 
-
 def main():
     # transform data
     norms = pd.read_csv(output_dir / "norms.csv", index_col="image_id")
@@ -216,48 +219,58 @@ def main():
 
     # --------------------------------------------
     answers_mean_per_image = answers.mean(axis=1).round(decimals=2)
-
+    cols = norms.columns
     for i in range(norms.shape[1]):
         norm = norms.iloc[:, i]
         norm = norm.tolist()
         All, MeanPerPerson, MeanPerImage = generate_pairs(norm, answers)
 
+        model_A = LinearRegression()
+        model_P = LinearRegression()
+        model_I = LinearRegression()
+
+        model_A.fit(All[:, 0].reshape(-1, 1), All[:, 1])
+        model_P.fit(MeanPerPerson[:, 0].reshape(-1, 1), MeanPerPerson[:, 1])
+        model_I.fit(MeanPerImage[:, 0].reshape(-1, 1), MeanPerImage[:, 1])
+        x_A = np.linspace(All[:, 0].min(), All[:, 0].max(), 100).reshape(-1, 1)
+        x_P = np.linspace(
+            MeanPerPerson[:, 0].min(), MeanPerPerson[:, 0].max(), 100
+        ).reshape(-1, 1)
+        x_I = np.linspace(
+            MeanPerImage[:, 0].min(), MeanPerImage[:, 0].max(), 100
+        ).reshape(-1, 1)
+
+        pred_A = model_A.predict(x_A.reshape(-1, 1))
+        pred_P = model_P.predict(x_P.reshape(-1, 1))
+        pred_I = model_I.predict(x_I.reshape(-1, 1))
+
+        predictions = [pred_A, pred_P, pred_I]
+        X = [x_A, x_P, x_I]
+
+        p = pd.concat([answers_mean_per_image, norms], axis=1)
+        p.columns = ["MOS", "MSE", "NMSE", "PSNR", "IF", "SSIM"]
+        p.index.name = "image_id"
+
+        corr_matrix = p.corr()
+
+        hm = draw_heatmap(corr_matrix)
+        fig = draw_plot(All, MeanPerPerson, MeanPerImage, predictions, X)
+
+        hm.savefig(output_dir / f"plots/heatmap_{cols[i]}.png")
+        fig.savefig(output_dir / f"plots/plot_{cols[i]}.png")
+
     norm = norms.index
-    # norm = norms.iloc[:, 0]
     norm = norm.tolist()
+
     All, MeanPerPerson, MeanPerImage = generate_pairs(norm, answers)
-    # number_of_persons = len(answers.columns)
-
-    model_A = LinearRegression()
-    model_P = LinearRegression()
-    model_I = LinearRegression()
-
-    model_A.fit(All[:, 0].reshape(-1, 1), All[:, 1])
-    model_P.fit(MeanPerPerson[:, 0].reshape(-1, 1), MeanPerPerson[:, 1])
-    model_I.fit(MeanPerImage[:, 0].reshape(-1, 1), MeanPerImage[:, 1])
-    x_A = np.linspace(All[:, 0].min(), All[:, 0].max(), 100).reshape(-1, 1)
-    x_P = np.linspace(
-        MeanPerPerson[:, 0].min(), MeanPerPerson[:, 0].max(), 100
-    ).reshape(-1, 1)
-    x_I = np.linspace(MeanPerImage[:, 0].min(), MeanPerImage[:, 0].max(), 100).reshape(
-        -1, 1
-    )
-
-    pred_A = model_A.predict(x_A.reshape(-1, 1))
-    pred_P = model_P.predict(x_P.reshape(-1, 1))
-    pred_I = model_I.predict(x_I.reshape(-1, 1))
-
-    predictions = [pred_A, pred_P, pred_I]
-    X = [x_A, x_P, x_I]
-
-    p = pd.concat([answers_mean_per_image, norms], axis=1)
-    p.columns = ["MOS", "MSE", "NMSE", "PSNR", "IF", "SSIM"]
-    p.index.name = "image_id"
 
     corr_matrix = p.corr()
 
     hm = draw_heatmap(corr_matrix)
-    fig = draw_plot(All, MeanPerPerson, MeanPerImage, predictions, X)
+    fig = draw_plot(All, MeanPerPerson, MeanPerImage, [], [], index=True)
+
+    hm.savefig(output_dir / f"plots/heatmap_index.png")
+    fig.savefig(output_dir / f"plots/plot_index.png")
 
 
 if __name__ == "__main__":
