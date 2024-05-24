@@ -77,29 +77,6 @@ def calculate_norms():
 def create_random_answers():
     import random
 
-    list = []
-    for i in range(30):
-        inner_list = []
-        for j in range(15):
-            inner_list.append(random.randint(1, 5))
-
-        list.append(inner_list)
-
-    columns = [f"image_{i+1}" for i in range(15)]
-    id = [f"person_{i}_0" for i in range(10)]
-    id += [f"person_{i}_1" for i in range(10)]
-    id += [f"person_{i}_2" for i in range(10)]
-
-    df = pd.DataFrame(list, columns=columns)
-    df.index = id
-    df.index.name = "person"
-
-    df.to_csv(output_dir / "_results.csv")
-
-
-def create_random_answers():
-    import random
-
     persons = [f"person_{i}" for i in range(10)]
     persons += [f"person_{i}" for i in range(10)]
     persons += [f"person_{i}" for i in range(10)]
@@ -147,7 +124,6 @@ def generate_pairs(norm, answers):
         answers.groupby(answers.columns, axis=1).mean().round(decimals=2).values
     )  # mean
 
-    norm = norm.tolist()
     answers = answers.values
 
     All = []
@@ -165,26 +141,51 @@ def generate_pairs(norm, answers):
     for i in range(answers_per_image.shape[0]):
         MeanPerImage.append([norm[i], answers_per_image[i]])
 
-    return All, MeanPerPerson, MeanPerImage
+    return (
+        np.array(All, dtype=np.float32),
+        np.array(MeanPerPerson, dtype=np.float32),
+        np.array(MeanPerImage, dtype=np.float32),
+    )
 
 
-def draw_plot(All, MeanPerPerson, MeanPerImage):
+def draw_plot(All, MeanPerPerson, MeanPerImage, number_of_persons, predictions):
     fig, axs = plt.subplots(1, 3, figsize=(15, 5))
+
+    # symbols = ["o", "s", "D", "v", "^", ">", "<", "p", "*", "h"]
+    # colors = ["b", "g", "r", "c", "m", "y", "k"]
+    # person_symbols = [f"{symbol}{color}" for symbol, color in zip(symbols[:number_of_persons], colors[:number_of_persons])]
+
+    symbols = ["o", "s", "D", "v", "^", ">", "<", "p", "*", "h"] * 3
 
     All = np.array(All)
     MeanPerPerson = np.array(MeanPerPerson)
     MeanPerImage = np.array(MeanPerImage)
 
+    # for i in range(number_of_persons):
+    #     sns.scatterplot(
+    #         x=All[i::number_of_persons, 0],
+    #         y=All[i::number_of_persons, 1],
+    #         ax=axs[0],
+    #         marker=symbols[i],
+    #     )
+
     sns.scatterplot(x=All[:, 0], y=All[:, 1], ax=axs[0])
+    # axs[0].plot(np.arange(0, 100), predictions, color="red")
     sns.scatterplot(x=MeanPerPerson[:, 0], y=MeanPerPerson[:, 1], ax=axs[1])
     sns.scatterplot(x=MeanPerImage[:, 0], y=MeanPerImage[:, 1], ax=axs[2])
 
     plt.show()
 
+def draw_heatmap(corr_matrix):
+    plt.figure(figsize=(10, 8))
+    sns.heatmap(corr_matrix, annot=True, cmap="PiYG")
+    plt.title("Correlation Matrix")
+    plt.show()
 
 def main():
-
+    # transform data
     norms = pd.read_csv(output_dir / "norms.csv", index_col="image_id")
+    norms.index = np.arange(1, len(norms.index) + 1)
     answers = pd.read_csv(output_dir / "answers.csv", index_col="Nazwa użytkownika")
 
     fct = pd.factorize(answers.index)
@@ -195,27 +196,38 @@ def main():
     answers = answers.transpose()
     answers.index.name = "image_id"
     answers.index = np.arange(1, num_columns + 1)
-    # print(answers)
 
     answers_mean_per_image = answers.mean(axis=1).round(decimals=2)
     answers_mean_per_person = (
         answers.groupby(answers.columns, axis=1).mean().round(decimals=2)
     )
-    print(answers_mean_per_image)
-    # print(answers_mean_per_person)
-    # print(norms.index.tolist())
-    # print(answers.values)
-    # print()
-    # answers_array = answers.values
-    # print(answers_array)
+    # --------------------------------------------
 
-    All, MeanPerPerson, MeanPerImage = generate_pairs(norms.index, answers)
-    draw_plot(All, MeanPerPerson, MeanPerImage)
+    # norm  = norms.index
+    norm = norms.iloc[:, 0]
+    norm = norm.tolist()
+    All, MeanPerPerson, MeanPerImage = generate_pairs(norm, answers)
+    number_of_persons = len(answers.columns)
+
+    # model = LinearRegression()
+    # model.fit(All[:, 0].reshape(-1, 1), All[:, 1].reshape(-1, 1))
+    # predictions = model.predict(np.arange(0, 100).reshape(-1, 1))
+    predictions = []
+
+    p = pd.concat([answers_mean_per_image, norms], axis=1)
+    p.columns = ["MOS", "MSE", "NMSE", "PSNR", "IF", "SSIM"]
+    p.index.name = "image_id"
+
+    corr_matrix = p.corr()
+
+    draw_heatmap(corr_matrix)
+    draw_plot(All, MeanPerPerson, MeanPerImage, number_of_persons, predictions)
+
+
 
 
 if __name__ == "__main__":
-    calculate_norms()
+    # calculate_norms()
     # create_random_answers()
 
     main()
-    # test()
