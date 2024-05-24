@@ -121,10 +121,14 @@ def test():
 def generate_pairs(norm, answers):
     answers_per_image = answers.mean(axis=1).round(decimals=2).values  # mean
     answers_per_person = (
-        answers.groupby(answers.columns, axis=1).mean().round(decimals=2).values
+        answers.groupby(answers.columns, axis=1).mean().round(decimals=2)
     )  # mean
 
+    columns_A = answers.columns
+    columns_P = answers_per_person.columns
+
     answers = answers.values
+    answers_per_person = answers_per_person.values
 
     All = []
     MeanPerPerson = []
@@ -132,11 +136,11 @@ def generate_pairs(norm, answers):
 
     for i in range(answers.shape[0]):
         for j in range(answers.shape[1]):
-            All.append([norm[i], answers[i, j]])
+            All.append([norm[i], answers[i, j], columns_A[j]])
 
     for i in range(answers_per_person.shape[0]):
         for j in range(answers_per_person.shape[1]):
-            MeanPerPerson.append([norm[i], answers_per_person[i, j]])
+            MeanPerPerson.append([norm[i], answers_per_person[i, j], columns_P[j]])
 
     for i in range(answers_per_image.shape[0]):
         MeanPerImage.append([norm[i], answers_per_image[i]])
@@ -148,39 +152,52 @@ def generate_pairs(norm, answers):
     )
 
 
-def draw_plot(All, MeanPerPerson, MeanPerImage, number_of_persons, predictions):
+def draw_plot(All, MeanPerPerson, MeanPerImage, predictions, X):
     fig, axs = plt.subplots(1, 3, figsize=(15, 5))
 
-    # symbols = ["o", "s", "D", "v", "^", ">", "<", "p", "*", "h"]
-    # colors = ["b", "g", "r", "c", "m", "y", "k"]
-    # person_symbols = [f"{symbol}{color}" for symbol, color in zip(symbols[:number_of_persons], colors[:number_of_persons])]
-
-    symbols = ["o", "s", "D", "v", "^", ">", "<", "p", "*", "h"] * 3
+    persons_A = np.array(All[:, 2], dtype=np.uint8)
+    persons_P = np.array(MeanPerPerson[:, 2], dtype=np.uint8)
 
     All = np.array(All)
     MeanPerPerson = np.array(MeanPerPerson)
     MeanPerImage = np.array(MeanPerImage)
 
-    # for i in range(number_of_persons):
-    #     sns.scatterplot(
-    #         x=All[i::number_of_persons, 0],
-    #         y=All[i::number_of_persons, 1],
-    #         ax=axs[0],
-    #         marker=symbols[i],
-    #     )
-
-    sns.scatterplot(x=All[:, 0], y=All[:, 1], ax=axs[0])
-    # axs[0].plot(np.arange(0, 100), predictions, color="red")
-    sns.scatterplot(x=MeanPerPerson[:, 0], y=MeanPerPerson[:, 1], ax=axs[1])
+    sns.scatterplot(x=All[:, 0], y=All[:, 1], ax=axs[0], style=persons_A)
+    axs[0].plot(X[0], predictions[0], color="magenta")
+    sns.scatterplot(x=MeanPerPerson[:, 0], y=MeanPerPerson[:, 1], ax=axs[1], style=persons_P)
+    axs[1].plot(X[1], predictions[1], color="magenta")
     sns.scatterplot(x=MeanPerImage[:, 0], y=MeanPerImage[:, 1], ax=axs[2])
+    axs[2].plot(X[2], predictions[2], color="magenta")
 
-    plt.show()
+    axs[0].set_title("Wszystkie oceny")
+    axs[0].set_xlabel("Miara jakości")
+    axs[0].set_ylabel("MOS")
+    axs[0].set_yticks(np.arange(1, 6))
+    axs[1].set_yticks(np.arange(1, 6))
+    axs[2].set_yticks(np.arange(1, 6))
+
+    axs[1].set_title("Zagregowane dla użytkownika")
+    axs[1].set_xlabel("Miara jakości")
+    axs[1].set_ylabel("MOS")
+
+    axs[2].set_title("Zagregowane")
+    axs[2].set_xlabel("Miara jakości")
+    axs[2].set_ylabel("MOS")
+
+    # plt.show()
+
+    return fig
+
 
 def draw_heatmap(corr_matrix):
-    plt.figure(figsize=(10, 8))
-    sns.heatmap(corr_matrix, annot=True, cmap="PiYG")
+    fig = plt.figure(figsize=(10, 10))
+    sns.heatmap(corr_matrix, annot=True, cmap="PiYG", fmt=".2f")
     plt.title("Correlation Matrix")
-    plt.show()
+    # plt.show()
+    # plt.savefig(output_dir / "plots/heatmap.png")
+    return fig
+
+
 
 def main():
     # transform data
@@ -197,22 +214,41 @@ def main():
     answers.index.name = "image_id"
     answers.index = np.arange(1, num_columns + 1)
 
-    answers_mean_per_image = answers.mean(axis=1).round(decimals=2)
-    answers_mean_per_person = (
-        answers.groupby(answers.columns, axis=1).mean().round(decimals=2)
-    )
     # --------------------------------------------
+    answers_mean_per_image = answers.mean(axis=1).round(decimals=2)
 
-    # norm  = norms.index
-    norm = norms.iloc[:, 0]
+    for i in range(norms.shape[1]):
+        norm = norms.iloc[:, i]
+        norm = norm.tolist()
+        All, MeanPerPerson, MeanPerImage = generate_pairs(norm, answers)
+
+    norm = norms.index
+    # norm = norms.iloc[:, 0]
     norm = norm.tolist()
     All, MeanPerPerson, MeanPerImage = generate_pairs(norm, answers)
-    number_of_persons = len(answers.columns)
+    # number_of_persons = len(answers.columns)
 
-    # model = LinearRegression()
-    # model.fit(All[:, 0].reshape(-1, 1), All[:, 1].reshape(-1, 1))
-    # predictions = model.predict(np.arange(0, 100).reshape(-1, 1))
-    predictions = []
+    model_A = LinearRegression()
+    model_P = LinearRegression()
+    model_I = LinearRegression()
+
+    model_A.fit(All[:, 0].reshape(-1, 1), All[:, 1])
+    model_P.fit(MeanPerPerson[:, 0].reshape(-1, 1), MeanPerPerson[:, 1])
+    model_I.fit(MeanPerImage[:, 0].reshape(-1, 1), MeanPerImage[:, 1])
+    x_A = np.linspace(All[:, 0].min(), All[:, 0].max(), 100).reshape(-1, 1)
+    x_P = np.linspace(
+        MeanPerPerson[:, 0].min(), MeanPerPerson[:, 0].max(), 100
+    ).reshape(-1, 1)
+    x_I = np.linspace(MeanPerImage[:, 0].min(), MeanPerImage[:, 0].max(), 100).reshape(
+        -1, 1
+    )
+
+    pred_A = model_A.predict(x_A.reshape(-1, 1))
+    pred_P = model_P.predict(x_P.reshape(-1, 1))
+    pred_I = model_I.predict(x_I.reshape(-1, 1))
+
+    predictions = [pred_A, pred_P, pred_I]
+    X = [x_A, x_P, x_I]
 
     p = pd.concat([answers_mean_per_image, norms], axis=1)
     p.columns = ["MOS", "MSE", "NMSE", "PSNR", "IF", "SSIM"]
@@ -220,10 +256,8 @@ def main():
 
     corr_matrix = p.corr()
 
-    draw_heatmap(corr_matrix)
-    draw_plot(All, MeanPerPerson, MeanPerImage, number_of_persons, predictions)
-
-
+    hm = draw_heatmap(corr_matrix)
+    fig = draw_plot(All, MeanPerPerson, MeanPerImage, predictions, X)
 
 
 if __name__ == "__main__":
