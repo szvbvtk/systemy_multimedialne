@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+from skimage.metrics import structural_similarity as ssim
 
 
 def watermark(img, mask, alpha=0.25):
@@ -81,20 +82,8 @@ def pop_data(img, binary_mask=np.uint8(1), out_shape=None):
     return data
 
 
-def pop_data(img, binary_mask=np.uint8(1), out_shape=None):
-    un_binary_mask = np.unpackbits(binary_mask)
-    data = np.zeros((img.shape[0], img.shape[1], np.sum(un_binary_mask))).astype(
-        np.uint8
-    )
-    bv = 0
-    for i, b in enumerate(un_binary_mask[::-1]):
-        if b:
-            mask = np.full((img.shape[0], img.shape[1]), 2**i)
-            temp = np.bitwise_and(img, mask)
-            data[:, :, bv] = temp[:, :].astype(np.uint8)
-            bv += 1
-    if out_shape != None:
-        tmp = np.packbits(data.flatten())
-        tmp = tmp[: np.prod(out_shape)]
-        data = tmp.reshape(out_shape)
-    return data
+def SSIM(source_image, target_image):
+    return ssim(source_image, target_image, channel_axis=2)
+
+def MSE(source_image, target_image):
+    return np.mean((source_image - target_image) ** 2)
